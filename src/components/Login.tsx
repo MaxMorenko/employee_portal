@@ -2,20 +2,41 @@ import { useState } from 'react';
 import { Mail, Lock, Briefcase } from 'lucide-react';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (email: string, password: string) => Promise<void>;
+  onShowRegister?: () => void;
 }
 
-export function Login({ onLogin }: LoginProps) {
+export function Login({ onLogin, onShowRegister }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+    setLoading(true);
+    setError(null);
+    try {
+      await onLogin(email, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не вдалося увійти');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDemo = () => {
-    onLogin();
+  const handleDemo = async () => {
+    setEmail('employee@company.com');
+    setPassword('password123');
+    try {
+      setLoading(true);
+      setError(null);
+      await onLogin('employee@company.com', 'password123');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не вдалося увійти');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -58,11 +79,11 @@ export function Login({ onLogin }: LoginProps) {
               <label htmlFor="password" className="block text-sm text-gray-700 mb-2">
                 Пароль
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="text-gray-400" size={20} />
-                </div>
-                <input
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="text-gray-400" size={20} />
+              </div>
+              <input
                   id="password"
                   type="password"
                   value={password}
@@ -73,12 +94,15 @@ export function Login({ onLogin }: LoginProps) {
               </div>
             </div>
 
+            {error && <p className="text-red-600 text-sm">{error}</p>}
+
             {/* Login Button */}
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg disabled:opacity-70"
             >
-              Увійти
+              {loading ? 'Вхід...' : 'Увійти'}
             </button>
 
             {/* Divider */}
@@ -95,10 +119,19 @@ export function Login({ onLogin }: LoginProps) {
             <button
               type="button"
               onClick={handleDemo}
-              className="w-full bg-white text-gray-700 py-3 rounded-lg border-2 border-gray-300 hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm hover:shadow-md"
+              disabled={loading}
+              className="w-full bg-white text-gray-700 py-3 rounded-lg border-2 border-gray-300 hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm hover:shadow-md disabled:opacity-70"
             >
               Переглянути демо
             </button>
+
+            <p className="text-xs text-gray-500 text-center">Тестові дані: employee@company.com / password123</p>
+
+            {onShowRegister && (
+              <p className="text-sm text-center text-blue-700 cursor-pointer" onClick={onShowRegister}>
+                Створити новий акаунт
+              </p>
+            )}
           </form>
         </div>
 
