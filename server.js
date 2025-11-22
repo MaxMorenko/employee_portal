@@ -9,9 +9,10 @@ const config = require('./config');
 const port = config.port;
 
 const normalizePath = (pathname = '') => {
-  if (!pathname) return '/';
-  const trimmed = pathname.replace(/\/+$/, '');
-  return trimmed || '/';
+  const safePath = pathname ? decodeURIComponent(pathname) : '';
+  const trimmed = safePath.replace(/\/+$/, '');
+  if (!trimmed) return '/';
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
 };
 
 runMigrations();
