@@ -376,8 +376,8 @@ function handleCompleteRegistration(req, res) {
         .prepare('SELECT id, name, email, department FROM users WHERE id = ?')
         .get(userId);
 
-      const token = createSession(user.id);
-      return sendJson(res, { token, user });
+      const sessionToken = createSession(user.id);
+      return sendJson(res, { token: sessionToken, user });
     })
     .catch((error) => sendJson(res, { message: 'Помилка реєстрації', error: String(error) }, 400));
 }
