@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Header } from './components/Header';
 import { Dashboard } from './components/Dashboard';
 import { Profile } from './components/Profile';
@@ -20,6 +20,25 @@ export default function App() {
   const [authView, setAuthView] = useState<'login' | 'register' | 'complete'>('login');
   const [pendingEmail, setPendingEmail] = useState('');
   const [tokenHint, setTokenHint] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const email = params.get('email') || '';
+    const path = window.location.pathname.toLowerCase();
+
+    if (token) {
+      setPendingEmail(email);
+      setTokenHint(token);
+      setAuthView('complete');
+      return;
+    }
+
+    if (path.includes('register')) {
+      setPendingEmail(email);
+      setAuthView('register');
+    }
+  }, []);
 
   const handleLogin = async (email: string, password: string) => {
     const response = await loginApi(email, password);
