@@ -1,11 +1,17 @@
 import { useState } from 'react';
-import { Mail, User, Lock, Briefcase } from 'lucide-react';
+import { Mail, User, Lock, Briefcase, CheckCircle2 } from 'lucide-react';
 import { completeRegistration, requestRegistration } from '../api/client';
 import type { LoginResponse } from '../api/types';
 
 interface RegistrationRequestProps {
   onSuccess: (email: string, tokenHint?: string) => void;
   onBack: () => void;
+}
+
+interface RegistrationRequestSentProps {
+  email: string;
+  onBack: () => void;
+  onEnterCode: () => void;
 }
 
 export function RegistrationRequest({ onSuccess, onBack }: RegistrationRequestProps) {
@@ -122,6 +128,43 @@ export function RegistrationRequest({ onSuccess, onBack }: RegistrationRequestPr
               Повернутись до входу
             </button>
           </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function RegistrationRequestSent({ email, onBack, onEnterCode }: RegistrationRequestSentProps) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-2xl mb-4 shadow-lg">
+            <CheckCircle2 className="text-white" size={32} />
+          </div>
+          <h1 className="text-gray-900 mb-2">Запит на створення акаунту відправлено</h1>
+          <p className="text-gray-600">
+            Ми надіслали інструкції для підтвердження на {email || 'ваш email'}. Перейдіть за посиланням у
+            листі, щоб завершити реєстрацію.
+          </p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100 space-y-4">
+          <button
+            type="button"
+            onClick={onEnterCode}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
+          >
+            Ввести код підтвердження
+          </button>
+
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full text-sm text-blue-600 hover:text-blue-800"
+          >
+            Повернутись до входу
+          </button>
         </div>
       </div>
     </div>

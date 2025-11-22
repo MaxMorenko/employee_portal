@@ -9,7 +9,11 @@ import { Team } from './components/Team';
 import { Login } from './components/Login';
 import { login as loginApi } from './api/client';
 import type { User } from './api/types';
-import { CompleteRegistration, RegistrationRequest } from './components/Register';
+import {
+  CompleteRegistration,
+  RegistrationRequest,
+  RegistrationRequestSent,
+} from './components/Register';
 
 export type Page = 'dashboard' | 'profile' | 'news' | 'calendar' | 'documents' | 'team';
 
@@ -17,7 +21,9 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [user, setUser] = useState<User | null>(null);
-  const [authView, setAuthView] = useState<'login' | 'register' | 'complete'>('login');
+  const [authView, setAuthView] = useState<'login' | 'register' | 'complete' | 'registerSent'>(
+    'login',
+  );
   const [pendingEmail, setPendingEmail] = useState('');
   const [tokenHint, setTokenHint] = useState('');
 
@@ -64,8 +70,18 @@ export default function App() {
           onSuccess={(email, hint) => {
             setPendingEmail(email);
             setTokenHint(hint || '');
-            setAuthView('complete');
+            setAuthView('registerSent');
           }}
+        />
+      );
+    }
+
+    if (authView === 'registerSent') {
+      return (
+        <RegistrationRequestSent
+          email={pendingEmail}
+          onBack={() => setAuthView('login')}
+          onEnterCode={() => setAuthView('complete')}
         />
       );
     }
