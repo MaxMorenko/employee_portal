@@ -399,7 +399,7 @@ function handleLogin(req, res) {
         return sendJson(res, { message: 'Невірні облікові дані' }, 401);
       }
 
-      db.prepare('UPDATE users SET last_login_at = datetime("now") WHERE id = ?').run(user.id);
+      db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(user.id);
       const token = createSession(user.id);
 
       return sendJson(res, {
