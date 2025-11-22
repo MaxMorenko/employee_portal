@@ -19,6 +19,37 @@ runMigrations();
 const db = getDb();
 const activeSessions = new Map();
 
+function ensureDefaultUsers() {
+  const defaults = [
+    {
+      name: 'Олексій',
+      email: 'employee@company.com',
+      department: 'Розробка',
+      password: 'password123',
+      is_admin: 0,
+    },
+    {
+      name: 'Адміністратор',
+      email: 'admin@company.com',
+      department: 'Адміністрування',
+      password: 'admin12345',
+      is_admin: 1,
+    },
+  ];
+
+  const findUser = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)');
+  const insertUser = db.prepare('INSERT INTO users (name, email, department, password, is_admin) VALUES (?, ?, ?, ?, ?)');
+
+  defaults.forEach((user) => {
+    const existing = findUser.get(user.email);
+    if (!existing) {
+      insertUser.run(user.name, user.email.toLowerCase(), user.department, user.password, user.is_admin);
+    }
+  });
+}
+
+ensureDefaultUsers();
+
 function createSession(userId) {
   const token = `session-${crypto.randomBytes(16).toString('hex')}`;
   activeSessions.set(token, userId);
