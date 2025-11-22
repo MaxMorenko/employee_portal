@@ -53,8 +53,9 @@
       target: 'esnext',
       outDir: 'build',
     },
-    server: {
-      port: 3000,
-      open: true,
-    },
-  });
+  server: {
+    port: 3000,
+    // Disable automatic browser opening to avoid xdg-open errors in headless environments
+    open: false,
+  },
+});
