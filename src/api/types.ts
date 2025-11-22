@@ -4,6 +4,13 @@ export interface User {
   email: string;
   department: string;
   is_admin: boolean;
+  jobTitle?: string;
+  phone?: string;
+  location?: string;
+  bio?: string;
+  tags?: string[];
+  status?: string;
+  lastLoginAt?: string | null;
 }
 
 export interface DashboardStat {
@@ -30,6 +37,7 @@ export interface NewsItem {
   date: string;
   image: string;
   featured: boolean;
+  viewCount?: number;
 }
 
 export interface NewsResponse {
@@ -76,6 +84,11 @@ export interface AdminOverview {
   users: User[];
   projects: Project[];
   news: NewsItem[];
+  stats: {
+    newsViews: number;
+    activeUsers: number;
+    lastLogin: string | null;
+  };
 }
 
 export interface RegistrationRequest {

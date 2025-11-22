@@ -7,7 +7,7 @@ import { Calendar } from './components/Calendar';
 import { Documents } from './components/Documents';
 import { Team } from './components/Team';
 import { Login } from './components/Login';
-import { login as loginApi, logout as logoutApi } from './api/client';
+import { getProfile, login as loginApi, logout as logoutApi } from './api/client';
 import type { LoginResponse, User } from './api/types';
 import {
   CompleteRegistration,
@@ -66,6 +66,14 @@ export default function App() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!sessionToken) return;
+
+    getProfile(sessionToken)
+      .then((profile) => setUser({ ...profile, is_admin: Boolean(profile.is_admin) }))
+      .catch((err) => console.error('Не вдалося оновити профіль', err));
+  }, [sessionToken]);
 
   const persistSession = (token: string, sessionUser: User) => {
     setSessionToken(token);
@@ -151,7 +159,7 @@ export default function App() {
       case 'dashboard':
         return <Dashboard onNavigate={setCurrentPage} user={user} />;
       case 'profile':
-        return <Profile />;
+        return user && sessionToken ? <Profile user={user} token={sessionToken} onUserUpdate={setUser} /> : null;
       case 'news':
         return <News />;
       case 'calendar':
