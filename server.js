@@ -113,7 +113,7 @@ function sendJson(res, data, status = 200) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Session-Token',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
   });
   res.end(JSON.stringify(data));
