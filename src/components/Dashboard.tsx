@@ -1,48 +1,57 @@
+import { useEffect, useState } from 'react';
 import { Calendar, FileText, Users, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 import type { Page } from '../App';
+import { getDashboard } from '../api/client';
+import type { DashboardData, User } from '../api/types';
 
 interface DashboardProps {
   onNavigate: (page: Page) => void;
+  user: User | null;
 }
 
-export function Dashboard({ onNavigate }: DashboardProps) {
-  const stats = [
-    { label: 'Активні проєкти', value: '12', icon: TrendingUp, color: 'bg-blue-500' },
-    { label: 'Зустрічі сьогодні', value: '3', icon: Calendar, color: 'bg-green-500' },
-    { label: 'Нові документи', value: '8', icon: FileText, color: 'bg-purple-500' },
-    { label: 'Члени команди', value: '47', icon: Users, color: 'bg-orange-500' },
-  ];
+const iconMap: Record<string, typeof TrendingUp> = {
+  'trending-up': TrendingUp,
+  calendar: Calendar,
+  'file-text': FileText,
+  users: Users,
+};
 
-  const upcomingEvents = [
-    { id: 1, title: 'Планування спринту', time: '10:00', date: 'Сьогодні' },
-    { id: 2, title: 'Презентація проєкту', time: '14:30', date: 'Сьогодні' },
-    { id: 3, title: 'Зустріч команди', time: '16:00', date: 'Сьогодні' },
-  ];
+export function Dashboard({ onNavigate, user }: DashboardProps) {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const recentNews = [
-    { id: 1, title: 'Запуск нового продукту', date: '21 листопада 2025', category: 'Продукт' },
-    { id: 2, title: 'Корпоративний захід у грудні', date: '20 листопада 2025', category: 'Події' },
-    { id: 3, title: 'Оновлення політики відпусток', date: '19 листопада 2025', category: 'HR' },
-  ];
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const response = await getDashboard();
+        setData(response);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Не вдалося завантажити дані');
+      }
+    };
 
-  const tasks = [
-    { id: 1, title: 'Завершити квартальний звіт', completed: false },
-    { id: 2, title: 'Переглянути PR команди', completed: true },
-    { id: 3, title: 'Підготувати презентацію', completed: false },
-    { id: 4, title: 'Оновити документацію', completed: false },
-  ];
+    loadDashboard();
+  }, []);
+
+  if (error) {
+    return <p className="text-red-600">{error}</p>;
+  }
+
+  if (!data) {
+    return <p className="text-gray-600">Завантаження дашборду...</p>;
+  }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-gray-900 mb-2">Доброго дня, Олексій!</h1>
+        <h1 className="text-gray-900 mb-2">Доброго дня, {user?.name || data.greeting}!</h1>
         <p className="text-gray-600">Ось що відбувається сьогодні</p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
+        {data.stats.map((stat) => {
+          const Icon = iconMap[stat.icon] || TrendingUp;
           return (
             <div key={stat.label} className="bg-white p-6 rounded-xl shadow-sm">
               <div className="flex items-center justify-between">
@@ -72,7 +81,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             </button>
           </div>
           <div className="space-y-3">
-            {upcomingEvents.map((event) => (
+            {data.upcomingEvents.map((event) => (
               <div key={event.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Clock className="w-4 h-4 text-blue-600" />
@@ -98,7 +107,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             </button>
           </div>
           <div className="space-y-3">
-            {recentNews.map((news) => (
+            {data.recentNews.map((news) => (
               <div key={news.id} className="p-3 border border-gray-200 rounded-lg hover:border-gray-300 cursor-pointer transition-colors">
                 <div className="flex items-start gap-2 mb-1">
                   <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs">
@@ -116,10 +125,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         <div className="bg-white p-6 rounded-xl shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-gray-900">Мої завдання</h2>
-            <span className="text-gray-600">{tasks.filter(t => !t.completed).length} активних</span>
+            <span className="text-gray-600">{data.tasks.filter(t => !t.completed).length} активних</span>
           </div>
           <div className="space-y-3">
-            {tasks.map((task) => (
+            {data.tasks.map((task) => (
               <div key={task.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                 <button className={`mt-0.5 ${task.completed ? 'text-green-500' : 'text-gray-300'}`}>
                   <CheckCircle className="w-5 h-5" />

@@ -1,0 +1,40 @@
+version: '3.9'
+
+services:
+  api:
+    build: .
+    image: employee-portal
+    command: sh -c "npm run migrate && npm run api"
+    env_file:
+      - .env
+    environment:
+      - PORT=4000
+      - DB_FILENAME=/data/employee_portal.sqlite
+    ports:
+      - "4000:4000"
+    volumes:
+      - db_data:/data
+    depends_on:
+      - db_prep
+
+  web:
+    image: employee-portal
+    build: .
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    env_file:
+      - .env
+    environment:
+      - VITE_API_URL=http://localhost:4000/api
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+  db_prep:
+    image: busybox
+    command: sh -c "mkdir -p /data"
+    volumes:
+      - db_data:/data
+
+volumes:
+  db_data:

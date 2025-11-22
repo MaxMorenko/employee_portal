@@ -1,63 +1,34 @@
-import { FileText, Download, Search, Filter, Folder, File } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Download, Search, Filter, Folder, File } from 'lucide-react';
+import { getDocuments } from '../api/client';
+import type { DocumentFolder, DocumentItem } from '../api/types';
 
 export function Documents() {
-  const folders = [
-    { id: 1, name: 'Політики компанії', files: 12, icon: Folder },
-    { id: 2, name: 'Шаблони документів', files: 24, icon: Folder },
-    { id: 3, name: 'Презентації', files: 8, icon: Folder },
-    { id: 4, name: 'Звіти', files: 15, icon: Folder },
-  ];
+  const [folders, setFolders] = useState<DocumentFolder[]>([]);
+  const [recentDocuments, setRecentDocuments] = useState<DocumentItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const recentDocuments = [
-    {
-      id: 1,
-      name: 'Політика відпусток 2025',
-      type: 'PDF',
-      size: '2.4 MB',
-      modified: '21 листопада 2025',
-      category: 'HR',
-    },
-    {
-      id: 2,
-      name: 'Квартальний звіт Q3',
-      type: 'XLSX',
-      size: '5.1 MB',
-      modified: '20 листопада 2025',
-      category: 'Фінанси',
-    },
-    {
-      id: 3,
-      name: 'Презентація продукту',
-      type: 'PPTX',
-      size: '15.2 MB',
-      modified: '19 листопада 2025',
-      category: 'Продукт',
-    },
-    {
-      id: 4,
-      name: 'Інструкція з безпеки',
-      type: 'PDF',
-      size: '1.8 MB',
-      modified: '18 листопада 2025',
-      category: 'HR',
-    },
-    {
-      id: 5,
-      name: 'Шаблон договору',
-      type: 'DOCX',
-      size: '245 KB',
-      modified: '17 листопада 2025',
-      category: 'Юридичні',
-    },
-    {
-      id: 6,
-      name: 'Технічна документація API',
-      type: 'PDF',
-      size: '3.7 MB',
-      modified: '16 листопада 2025',
-      category: 'Технічні',
-    },
-  ];
+  useEffect(() => {
+    const loadDocuments = async () => {
+      try {
+        const response = await getDocuments();
+        setFolders(response.folders);
+        setRecentDocuments(response.recentDocuments);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Не вдалося завантажити документи');
+      }
+    };
+
+    loadDocuments();
+  }, []);
+
+  if (error) {
+    return <p className="text-red-600">{error}</p>;
+  }
+
+  if (!folders.length && !recentDocuments.length) {
+    return <p className="text-gray-600">Завантаження документів...</p>;
+  }
 
   const getFileIcon = (type: string) => {
     const colors: Record<string, string> = {
@@ -97,7 +68,7 @@ export function Documents() {
         <h2 className="text-gray-900 mb-4">Папки</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {folders.map((folder) => {
-            const Icon = folder.icon;
+            const Icon = Folder;
             return (
               <div
                 key={folder.id}
