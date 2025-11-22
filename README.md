@@ -11,6 +11,19 @@ Run `npm run dev` to start the development server.
 
 Copy `.env.example` to `.env` and adjust values if you need to change the API port, database location, or SMTP settings.
 
+### Run with Docker (one command)
+
+1. Create a `.env` file (optional) to override defaults for ports, DB filename, SMTP, and frontend base URL.
+2. Build and start everything with a single command:
+
+   ```bash
+   docker compose up --build
+   ```
+
+   - API: exposed on port `4000` (runs migrations on startup, DB persisted in a named volume).
+   - Frontend: Vite dev server on port `5173`, configured to call the API at `http://localhost:4000/api`.
+3. Stop the stack with `docker compose down`. The SQLite data stays in the `db_data` volume unless you remove it with `docker compose down -v`.
+
 ## Configuration
 
 Environment variables used by the API server (see `config.js` for defaults):
