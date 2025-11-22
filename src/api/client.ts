@@ -8,7 +8,44 @@ import {
   RegistrationRequestResponse,
 } from './types';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const DEFAULT_API_BASE = 'http://localhost:4000/api';
+const API_BASE = (import.meta.env.VITE_API_URL || DEFAULT_API_BASE).replace(/\/+$/, '');
+
+function normalizeTokenInput(rawToken: string) {
+  if (!rawToken) return '';
+  const trimmed = rawToken.trim();
+
+  try {
+    const parsedUrl = new URL(trimmed);
+    const fromQuery = parsedUrl.searchParams.get('token');
+    if (fromQuery) return fromQuery;
+  } catch (_err) {
+    // not a URL, continue
+  }
+
+  const match = trimmed.match(/token=([^&]+)/i);
+  if (match?.[1]) {
+    try {
+      return decodeURIComponent(match[1]);
+    } catch (_err) {
+      return match[1];
+    }
+  }
+
+  return trimmed;
+}
+
+class ApiError extends Error {
+  status?: number;
+  body?: unknown;
+
+  constructor(message: string, status?: number, body?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.body = body;
+  }
+}
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -16,17 +53,35 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
     ...options,
   });
 
+  const contentType = response.headers.get('content-type') || '';
+  const rawText = await response.text();
+
   if (!response.ok) {
+    let body: unknown;
+    let message = rawText || 'Request failed';
+
     try {
-      const errorJson = await response.json();
-      throw new Error(errorJson.message || 'Request failed');
+      if (rawText && contentType.includes('application/json')) {
+        body = JSON.parse(rawText);
+        message = (body as { message?: string }).message || message;
+      }
     } catch {
-      const message = await response.text();
-      throw new Error(message || 'Request failed');
+      // ignore parse errors and fall back to raw text
     }
+
+    throw new ApiError(message, response.status, body ?? rawText);
   }
 
-  return response.json();
+  if (!rawText) {
+    return {} as T;
+  }
+
+  if (contentType.includes('application/json')) {
+    return JSON.parse(rawText) as T;
+  }
+
+  // Fallback for unexpected non-JSON success responses
+  return rawText as unknown as T;
 }
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
@@ -60,8 +115,9 @@ export async function requestRegistration(
 export async function completeRegistration(
   payload: CompleteRegistrationPayload
 ): Promise<LoginResponse> {
+  const sanitized = { ...payload, token: normalizeTokenInput(payload.token) };
   return fetchJson<LoginResponse>(`${API_BASE}/auth/complete-registration`, {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(sanitized),
   });
 }

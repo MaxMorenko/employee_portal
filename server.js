@@ -8,6 +8,13 @@ const config = require('./config');
 
 const port = config.port;
 
+const normalizePath = (pathname = '') => {
+  const safePath = pathname ? decodeURIComponent(pathname) : '';
+  const trimmed = safePath.replace(/\/+$/, '');
+  if (!trimmed) return '/';
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+};
+
 runMigrations();
 const db = getDb();
 
@@ -252,10 +259,36 @@ ${confirmationLink}
     .catch((error) => sendJson(res, { message: 'Помилка запиту', error: String(error) }, 400));
 }
 
+function normalizeIncomingToken(rawToken = '') {
+  if (!rawToken) return '';
+
+  const trimmed = String(rawToken).trim();
+
+  try {
+    const parsedUrl = new URL(trimmed);
+    const searchToken = parsedUrl.searchParams.get('token');
+    if (searchToken) return searchToken;
+  } catch (_) {
+    // Not a URL, fall back to manual parsing
+  }
+
+  const tokenMatch = trimmed.match(/token=([^&]+)/i);
+  if (tokenMatch?.[1]) {
+    try {
+      return decodeURIComponent(tokenMatch[1]);
+    } catch (_) {
+      return tokenMatch[1];
+    }
+  }
+
+  return trimmed;
+}
+
 function handleCompleteRegistration(req, res) {
   parseBody(req)
     .then((parsed) => {
-      const { token, password, confirmPassword } = parsed;
+      const { token: rawToken, password, confirmPassword } = parsed;
+      const token = normalizeIncomingToken(rawToken);
 
       if (!token) {
         return sendJson(res, { message: 'Відсутній токен підтвердження' }, 400);
@@ -321,36 +354,37 @@ function handleCompleteRegistration(req, res) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '', `http://${req.headers.host}`);
+  const pathname = normalizePath(url.pathname);
 
   if (req.method === 'OPTIONS') {
     return sendJson(res, { status: 'ok' });
   }
 
-  if (req.method === 'GET' && url.pathname === '/api/health') {
+  if (req.method === 'GET' && pathname === '/api/health') {
     return sendJson(res, { status: 'ok', database: path.basename(DB_PATH) });
   }
 
-  if (req.method === 'GET' && url.pathname === '/api/dashboard') {
+  if (req.method === 'GET' && pathname === '/api/dashboard') {
     return sendJson(res, getDashboardData());
   }
 
-  if (req.method === 'GET' && url.pathname === '/api/news') {
+  if (req.method === 'GET' && pathname === '/api/news') {
     return sendJson(res, getNewsData());
   }
 
-  if (req.method === 'GET' && url.pathname === '/api/documents') {
+  if (req.method === 'GET' && pathname === '/api/documents') {
     return sendJson(res, getDocumentData());
   }
 
-  if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+  if (req.method === 'POST' && pathname === '/api/auth/login') {
     return handleLogin(req, res);
   }
 
-  if (req.method === 'POST' && url.pathname === '/api/auth/register-request') {
+  if (req.method === 'POST' && pathname === '/api/auth/register-request') {
     return handleRegisterRequest(req, res);
   }
 
-  if (req.method === 'POST' && url.pathname === '/api/auth/complete-registration') {
+  if (req.method === 'POST' && pathname === '/api/auth/complete-registration') {
     return handleCompleteRegistration(req, res);
   }
 
