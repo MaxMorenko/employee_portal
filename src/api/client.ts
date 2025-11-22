@@ -8,6 +8,7 @@ import {
   Project,
   RegistrationRequest,
   RegistrationRequestResponse,
+  User,
 } from './types';
 
 const DEFAULT_API_BASE = 'http://localhost:4000/api';
@@ -140,6 +141,47 @@ export async function getAdminOverview(token: string): Promise<AdminOverview> {
   });
 }
 
+export async function getAdminUsers(token: string): Promise<User[]> {
+  return fetchJson<User[]>(`${API_BASE}/admin/users`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+  });
+}
+
+export async function createUser(token: string, payload: Partial<User> & { password: string }): Promise<User> {
+  return fetchJson<User>(`${API_BASE}/admin/users`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateUser(token: string, id: number, payload: Partial<User> & { password?: string }): Promise<User> {
+  return fetchJson<User>(`${API_BASE}/admin/users/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteUser(token: string, id: number): Promise<{ deleted: boolean }> {
+  return fetchJson<{ deleted: boolean }>(`${API_BASE}/admin/users/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+  });
+}
+
 export async function createProject(token: string, payload: Omit<Project, 'id' | 'dueDate'> & { dueDate: string }): Promise<Project> {
   return fetchJson<Project>(`${API_BASE}/admin/projects`, {
     method: 'POST',
@@ -162,5 +204,25 @@ export async function createNews(
       'x-session-token': token,
     },
     body: JSON.stringify(payload),
+  });
+}
+
+export async function getProfile(token: string): Promise<User> {
+  return fetchJson<User>(`${API_BASE}/profile`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+  });
+}
+
+export async function updateProfileStatus(token: string, status: string): Promise<User> {
+  return fetchJson<User>(`${API_BASE}/profile/status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+    body: JSON.stringify({ status }),
   });
 }

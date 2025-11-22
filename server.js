@@ -42,9 +42,36 @@ function ensureDefaultUsers() {
   defaults.forEach((user) => {
     const existing = findUser.get(user.email);
     if (!existing) {
-      insertUser.run(user.name, user.email.toLowerCase(), user.department, user.password, user.is_admin);
+    insertUser.run(user.name, user.email.toLowerCase(), user.department, user.password, user.is_admin);
     }
   });
+}
+
+function parseTags(rawValue) {
+  if (!rawValue) return [];
+  try {
+    const parsed = JSON.parse(rawValue);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_err) {
+    return String(rawValue)
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
+}
+
+function serializeTags(tags = []) {
+  if (Array.isArray(tags)) {
+    return JSON.stringify(tags);
+  }
+  if (typeof tags === 'string') {
+    const cleaned = tags
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    return JSON.stringify(cleaned);
+  }
+  return '[]';
 }
 
 ensureDefaultUsers();
@@ -84,14 +111,18 @@ function getSessionUser(token) {
   if (!token) return null;
   const user = db
     .prepare(
-      `SELECT u.id, u.name, u.email, u.department, u.is_admin
+      `SELECT u.id, u.name, u.email, u.department, u.is_admin, u.job_title AS jobTitle, u.phone, u.location, u.bio, u.tags, u.status, u.last_login_at AS lastLoginAt
        FROM sessions s
        JOIN users u ON u.id = s.user_id
        WHERE s.token = ?`
     )
     .get(token);
   if (!user) return null;
-  return { ...user, is_admin: Boolean(user.is_admin) };
+  return {
+    ...user,
+    is_admin: Boolean(user.is_admin),
+    tags: parseTags(user.tags),
+  };
 }
 
 function getSessionToken(req) {
@@ -132,6 +163,22 @@ function requireAdmin(req, res) {
   return user;
 }
 
+function requireUser(req, res) {
+  const token = getSessionToken(req);
+  if (!token) {
+    sendJson(res, { message: 'Потрібен токен сесії' }, 401);
+    return null;
+  }
+
+  const user = getSessionUser(token);
+  if (!user) {
+    sendJson(res, { message: 'Сесію не знайдено' }, 401);
+    return null;
+  }
+
+  return { user, token };
+}
+
 const emailTransport = config.smtp.host
   ? nodemailer.createTransport({
       host: config.smtp.host,
@@ -152,8 +199,8 @@ function sendJson(res, data, status = 200) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Session-Token',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Session-Token, Authorization',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
   });
   res.end(JSON.stringify(data));
 }
@@ -254,7 +301,7 @@ function formatISODateToUA(isoDate) {
 function getNewsData() {
   const items = db
     .prepare(
-      `SELECT id, title, excerpt, category, author, published_at, image_url AS image, featured
+      `SELECT id, title, excerpt, category, author, published_at, image_url AS image, featured, view_count AS viewCount
        FROM news
        ORDER BY published_at DESC, id DESC`
     )
@@ -314,9 +361,21 @@ function getProjects() {
 
 function getAllUsers() {
   return db
-    .prepare('SELECT id, name, email, department, is_admin FROM users ORDER BY id ASC')
+    .prepare(
+      `SELECT id, name, email, department, is_admin, job_title AS jobTitle, phone, location, bio, tags, status, last_login_at AS lastLoginAt
+       FROM users
+       ORDER BY id ASC`
+    )
     .all()
-    .map((user) => ({ ...user, is_admin: Boolean(user.is_admin) }));
+    .map(formatUserRow);
+}
+
+function formatUserRow(user) {
+  return {
+    ...user,
+    is_admin: Boolean(user.is_admin),
+    tags: parseTags(user.tags),
+  };
 }
 
 function handleLogin(req, res) {
@@ -329,16 +388,28 @@ function handleLogin(req, res) {
       }
 
       const user = db
-        .prepare('SELECT id, name, email, department, is_admin FROM users WHERE email = ? AND password = ?')
+        .prepare(
+          `SELECT id, name, email, department, is_admin, job_title AS jobTitle, phone, location, bio, tags, status, last_login_at AS lastLoginAt
+           FROM users
+           WHERE email = ? AND password = ?`
+        )
         .get(email.toLowerCase(), password);
 
       if (!user) {
         return sendJson(res, { message: 'Невірні облікові дані' }, 401);
       }
 
+      db.prepare('UPDATE users SET last_login_at = datetime("now") WHERE id = ?').run(user.id);
       const token = createSession(user.id);
 
-      return sendJson(res, { token, user: { ...user, is_admin: Boolean(user.is_admin) } });
+      return sendJson(res, {
+        token,
+        user: {
+          ...user,
+          is_admin: Boolean(user.is_admin),
+          tags: parseTags(user.tags),
+        },
+      });
     })
     .catch((error) => sendJson(res, { message: 'Неправильний формат запиту', error: String(error) }, 400));
 }
@@ -579,6 +650,7 @@ function handleCreateNews(req, res) {
         image: imageUrl,
         featured: Boolean(featured),
         date: formatISODateToUA(publishedAt),
+        viewCount: 0,
       };
 
       return sendJson(res, created, 201);
@@ -586,11 +658,158 @@ function handleCreateNews(req, res) {
     .catch((error) => sendJson(res, { message: 'Не вдалося створити новину', error: String(error) }, 400));
 }
 
+function handleCreateUser(req, res) {
+  parseBody(req)
+    .then((body) => {
+      const { name, email, department, password, is_admin = false, jobTitle = '', phone = '', location = '', bio = '', tags = [], status = 'Активний' } = body;
+
+      if (!name || !email || !password) {
+        return sendJson(res, { message: 'Поля name, email та password є обов’язковими' }, 400);
+      }
+
+      const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)').get(email.toLowerCase());
+      if (existing) {
+        return sendJson(res, { message: 'Користувач з таким email вже існує' }, 409);
+      }
+
+      const result = db
+        .prepare(
+          `INSERT INTO users (name, email, department, password, is_admin, job_title, phone, location, bio, tags, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(
+          name,
+          email.toLowerCase(),
+          department || '',
+          password,
+          is_admin ? 1 : 0,
+          jobTitle,
+          phone,
+          location,
+          bio,
+          serializeTags(tags),
+          status,
+        );
+
+      const created = db
+        .prepare(
+          `SELECT id, name, email, department, is_admin, job_title AS jobTitle, phone, location, bio, tags, status, last_login_at AS lastLoginAt
+           FROM users WHERE id = ?`
+        )
+        .get(result.lastInsertRowid);
+
+      return sendJson(res, formatUserRow(created), 201);
+    })
+    .catch((error) => sendJson(res, { message: 'Не вдалося створити користувача', error: String(error) }, 400));
+}
+
+function handleUpdateUser(req, res, userId) {
+  parseBody(req)
+    .then((body) => {
+      const existing = db
+        .prepare(
+          `SELECT id FROM users WHERE id = ?`
+        )
+        .get(userId);
+
+      if (!existing) {
+        return sendJson(res, { message: 'Користувача не знайдено' }, 404);
+      }
+
+      const { name, email, department, password, is_admin, jobTitle, phone, location, bio, tags, status } = body;
+
+      const updater = db.prepare(
+        `UPDATE users
+         SET name = COALESCE(?, name),
+             email = COALESCE(?, email),
+             department = COALESCE(?, department),
+             password = COALESCE(?, password),
+             is_admin = CASE WHEN ? IS NULL THEN is_admin ELSE ? END,
+             job_title = COALESCE(?, job_title),
+             phone = COALESCE(?, phone),
+             location = COALESCE(?, location),
+             bio = COALESCE(?, bio),
+             tags = COALESCE(?, tags),
+             status = COALESCE(?, status)
+         WHERE id = ?`
+      );
+
+      updater.run(
+        name || null,
+        email ? email.toLowerCase() : null,
+        department || null,
+        password || null,
+        typeof is_admin === 'undefined' ? null : is_admin ? 1 : 0,
+        typeof is_admin === 'undefined' ? null : is_admin ? 1 : 0,
+        jobTitle || null,
+        phone || null,
+        location || null,
+        bio || null,
+        typeof tags === 'undefined' ? null : serializeTags(tags),
+        status || null,
+        userId,
+      );
+
+      const updated = db
+        .prepare(
+          `SELECT id, name, email, department, is_admin, job_title AS jobTitle, phone, location, bio, tags, status, last_login_at AS lastLoginAt
+           FROM users WHERE id = ?`
+        )
+        .get(userId);
+
+      return sendJson(res, formatUserRow(updated));
+    })
+    .catch((error) => sendJson(res, { message: 'Не вдалося оновити користувача', error: String(error) }, 400));
+}
+
+function handleDeleteUser(res, userId) {
+  const result = db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  if (!result.changes) {
+    return sendJson(res, { message: 'Користувача не знайдено' }, 404);
+  }
+
+  return sendJson(res, { deleted: true });
+}
+
+function handleGetProfile(req, res) {
+  const session = requireUser(req, res);
+  if (!session) return;
+
+  return sendJson(res, session.user);
+}
+
+function handleUpdateProfileStatus(req, res) {
+  const session = requireUser(req, res);
+  if (!session) return;
+
+  parseBody(req)
+    .then((body) => {
+      const { status = '' } = body;
+      const cleanStatus = String(status).trim();
+      if (!cleanStatus) {
+        return sendJson(res, { message: 'Статус не може бути порожнім' }, 400);
+      }
+
+      db.prepare('UPDATE users SET status = ? WHERE id = ?').run(cleanStatus, session.user.id);
+
+      const refreshed = getSessionUser(session.token);
+      return sendJson(res, refreshed || session.user);
+    })
+    .catch((error) => sendJson(res, { message: 'Не вдалося оновити статус', error: String(error) }, 400));
+}
+
 function getAdminOverview() {
+  const stats = {
+    newsViews: db.prepare('SELECT COALESCE(SUM(view_count), 0) as total FROM news').get().total,
+    activeUsers: db.prepare('SELECT COUNT(*) as total FROM sessions').get().total,
+    lastLogin: db.prepare('SELECT MAX(last_login_at) as lastLogin FROM users').get().lastLogin,
+  };
+
   return {
     users: getAllUsers(),
     projects: getProjects(),
     news: getNewsData().items,
+    stats,
   };
 }
 
@@ -681,6 +900,23 @@ const server = http.createServer((req, res) => {
       return sendJson(res, getAdminOverview());
     }
 
+    if (req.method === 'GET' && pathname === '/api/admin/users') {
+      return sendJson(res, getAllUsers());
+    }
+
+    if (req.method === 'POST' && pathname === '/api/admin/users') {
+      return handleCreateUser(req, res);
+    }
+
+    const userMatch = pathname.match(/^\/api\/admin\/users\/(\d+)$/);
+    if (userMatch && req.method === 'PUT') {
+      return handleUpdateUser(req, res, Number(userMatch[1]));
+    }
+
+    if (userMatch && req.method === 'DELETE') {
+      return handleDeleteUser(res, Number(userMatch[1]));
+    }
+
     if (req.method === 'POST' && pathname === '/api/admin/projects') {
       return handleCreateProject(req, res);
     }
@@ -688,6 +924,14 @@ const server = http.createServer((req, res) => {
     if (req.method === 'POST' && pathname === '/api/admin/news') {
       return handleCreateNews(req, res);
     }
+  }
+
+  if (req.method === 'GET' && pathname === '/api/profile') {
+    return handleGetProfile(req, res);
+  }
+
+  if (req.method === 'POST' && pathname === '/api/profile/status') {
+    return handleUpdateProfileStatus(req, res);
   }
 
   if (req.method === 'POST' && pathname === '/api/auth/login') {
