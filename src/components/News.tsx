@@ -1,76 +1,39 @@
-import { Newspaper, Calendar, User, ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, User, ArrowRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { getNews } from '../api/client';
+import type { NewsItem } from '../api/types';
 
 export function News() {
-  const newsItems = [
-    {
-      id: 1,
-      title: 'Запуск нового продукту: AI Platform 2.0',
-      excerpt: 'Раді оголосити про запуск нашої нової платформи штучного інтелекту, яка допоможе клієнтам автоматизувати їх бізнес-процеси.',
-      category: 'Продукт',
-      author: 'Марія Петренко',
-      date: '21 листопада 2025',
-      image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=300&fit=crop',
-      featured: true,
-    },
-    {
-      id: 2,
-      title: 'Корпоративний зимовий захід',
-      excerpt: 'Запрошуємо всіх співробітників на щорічний зимовий захід 15 грудня. Буде багато розваг, подарунків та сюрпризів!',
-      category: 'Події',
-      author: 'Андрій Коваль',
-      date: '20 листопада 2025',
-      image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=600&h=300&fit=crop',
-      featured: false,
-    },
-    {
-      id: 3,
-      title: 'Оновлення політики відпусток',
-      excerpt: 'З 1 грудня набувають чинності нові правила оформлення та узгодження відпусток. Ознайомтесь з деталями.',
-      category: 'HR',
-      author: 'Олена Сидоренко',
-      date: '19 листопада 2025',
-      image: 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=600&h=300&fit=crop',
-      featured: false,
-    },
-    {
-      id: 4,
-      title: 'Квартальні результати: рекордний ріст',
-      excerpt: 'Третій квартал виявився найуспішнішим в історії компанії. Дякуємо всім за вашу наполегливу працю!',
-      category: 'Фінанси',
-      author: 'Ігор Мельник',
-      date: '18 листопада 2025',
-      image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=300&fit=crop',
-      featured: false,
-    },
-    {
-      id: 5,
-      title: 'Програма навчання для співробітників',
-      excerpt: 'Стартує нова програма професійного розвитку з курсами по лідерству, технологіям та soft skills.',
-      category: 'Навчання',
-      author: 'Тетяна Бойко',
-      date: '17 листопада 2025',
-      image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=600&h=300&fit=crop',
-      featured: false,
-    },
-    {
-      id: 6,
-      title: 'Екологічні ініціативи компанії',
-      excerpt: 'Наша компанія приєдналась до програми Carbon Neutral. Дізнайтесь, як ми зменшуємо наш вплив на довкілля.',
-      category: 'CSR',
-      author: 'Максим Гончар',
-      date: '16 листопада 2025',
-      image: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=600&h=300&fit=crop',
-      featured: false,
-    },
-  ];
-
-  const categories = ['Всі', 'Продукт', 'Події', 'HR', 'Фінанси', 'Навчання', 'CSR'];
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+  const [categories, setCategories] = useState<string[]>(['Всі']);
   const [selectedCategory, setSelectedCategory] = useState('Всі');
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredNews = selectedCategory === 'Всі' 
-    ? newsItems 
+  useEffect(() => {
+    const loadNews = async () => {
+      try {
+        const response = await getNews();
+        setNewsItems(response.items);
+        setCategories(response.categories);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Не вдалося отримати новини');
+      }
+    };
+
+    loadNews();
+  }, []);
+
+  if (error) {
+    return <p className="text-red-600">{error}</p>;
+  }
+
+  if (!newsItems.length) {
+    return <p className="text-gray-600">Завантаження новин...</p>;
+  }
+
+  const filteredNews = selectedCategory === 'Всі'
+    ? newsItems
     : newsItems.filter(item => item.category === selectedCategory);
 
   const featuredNews = newsItems.find(item => item.featured);
