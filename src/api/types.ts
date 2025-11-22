@@ -3,6 +3,7 @@ export interface User {
   name: string;
   email: string;
   department: string;
+  is_admin: boolean;
 }
 
 export interface DashboardStat {
@@ -60,6 +61,21 @@ export interface DocumentsResponse {
 export interface LoginResponse {
   token: string;
   user: User;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  owner: string;
+  status: string;
+  dueDate: string;
+  progress: number;
+}
+
+export interface AdminOverview {
+  users: User[];
+  projects: Project[];
+  news: NewsItem[];
 }
 
 export interface RegistrationRequest {
