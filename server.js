@@ -30,6 +30,38 @@ function revokeSession(token) {
   return activeSessions.delete(token);
 }
 
+function getSessionUser(token) {
+  if (!token) return null;
+  const userId = activeSessions.get(token);
+  if (!userId) return null;
+  const user = db
+    .prepare('SELECT id, name, email, department, is_admin FROM users WHERE id = ?')
+    .get(userId);
+  if (!user) return null;
+  return { ...user, is_admin: Boolean(user.is_admin) };
+}
+
+function requireAdmin(req, res) {
+  const token = req.headers['x-session-token'];
+  if (!token || Array.isArray(token)) {
+    sendJson(res, { message: 'Потрібен токен сесії адміністратора' }, 401);
+    return null;
+  }
+
+  const user = getSessionUser(String(token));
+  if (!user) {
+    sendJson(res, { message: 'Сесію не знайдено' }, 401);
+    return null;
+  }
+
+  if (!user.is_admin) {
+    sendJson(res, { message: 'Доступ дозволено лише адміністраторам' }, 403);
+    return null;
+  }
+
+  return user;
+}
+
 const emailTransport = config.smtp.host
   ? nodemailer.createTransport({
       host: config.smtp.host,
@@ -74,8 +106,10 @@ function parseBody(req) {
 }
 
 function getDemoUser() {
-  const user = db.prepare('SELECT id, name, email, department FROM users WHERE id = 1').get();
-  return user || null;
+  const user = db
+    .prepare('SELECT id, name, email, department, is_admin FROM users WHERE id = 1')
+    .get();
+  return user ? { ...user, is_admin: Boolean(user.is_admin) } : null;
 }
 
 function getDashboardData() {
@@ -152,7 +186,7 @@ function getNewsData() {
     .prepare(
       `SELECT id, title, excerpt, category, author, published_at, image_url AS image, featured
        FROM news
-       ORDER BY published_at DESC`
+       ORDER BY published_at DESC, id DESC`
     )
     .all()
     .map((item) => ({
@@ -193,6 +227,28 @@ function getDocumentData() {
   return { folders, recentDocuments };
 }
 
+function getProjects() {
+  return db
+    .prepare(
+      `SELECT id, name, owner, status, due_date AS dueDate, progress
+       FROM projects
+       ORDER BY due_date ASC, id ASC`
+    )
+    .all()
+    .map((project) => ({
+      ...project,
+      progress: Number(project.progress) || 0,
+      dueDate: formatISODateToUA(project.dueDate),
+    }));
+}
+
+function getAllUsers() {
+  return db
+    .prepare('SELECT id, name, email, department, is_admin FROM users ORDER BY id ASC')
+    .all()
+    .map((user) => ({ ...user, is_admin: Boolean(user.is_admin) }));
+}
+
 function handleLogin(req, res) {
   parseBody(req)
     .then((parsed) => {
@@ -203,7 +259,7 @@ function handleLogin(req, res) {
       }
 
       const user = db
-        .prepare('SELECT id, name, email, department FROM users WHERE email = ? AND password = ?')
+        .prepare('SELECT id, name, email, department, is_admin FROM users WHERE email = ? AND password = ?')
         .get(email.toLowerCase(), password);
 
       if (!user) {
@@ -212,7 +268,7 @@ function handleLogin(req, res) {
 
       const token = createSession(user.id);
 
-      return sendJson(res, { token, user });
+      return sendJson(res, { token, user: { ...user, is_admin: Boolean(user.is_admin) } });
     })
     .catch((error) => sendJson(res, { message: 'Неправильний формат запиту', error: String(error) }, 400));
 }
@@ -357,7 +413,7 @@ function handleCompleteRegistration(req, res) {
       }
 
       const insertUser = db.prepare(
-        `INSERT INTO users (name, email, department, password) VALUES (?, ?, ?, ?)`
+        `INSERT INTO users (name, email, department, password, is_admin) VALUES (?, ?, ?, ?, 0)`
       );
 
       const name = tokenRow.name || tokenRow.email.split('@')[0];
@@ -373,11 +429,11 @@ function handleCompleteRegistration(req, res) {
 
       const userId = transaction();
       const user = db
-        .prepare('SELECT id, name, email, department FROM users WHERE id = ?')
+        .prepare('SELECT id, name, email, department, is_admin FROM users WHERE id = ?')
         .get(userId);
 
       const sessionToken = createSession(user.id);
-      return sendJson(res, { token: sessionToken, user });
+      return sendJson(res, { token: sessionToken, user: { ...user, is_admin: Boolean(user.is_admin) } });
     })
     .catch((error) => sendJson(res, { message: 'Помилка реєстрації', error: String(error) }, 400));
 }
@@ -394,6 +450,78 @@ function handleLogout(req, res) {
       });
     })
     .catch((error) => sendJson(res, { message: 'Не вдалося завершити сесію', error: String(error) }, 400));
+}
+
+function handleCreateProject(req, res) {
+  parseBody(req)
+    .then((parsed) => {
+      const { name, owner, status = 'В роботі', dueDate, progress = 0 } = parsed || {};
+
+      if (!name || !owner || !dueDate) {
+        return sendJson(res, { message: 'Необхідні поля: name, owner, dueDate' }, 400);
+      }
+
+      const numericProgress = Math.min(100, Math.max(0, Number(progress) || 0));
+
+      const result = db
+        .prepare('INSERT INTO projects (name, owner, status, due_date, progress) VALUES (?, ?, ?, ?, ?)')
+        .run(name, owner, status, dueDate, numericProgress);
+
+      const project = {
+        id: result.lastInsertRowid,
+        name,
+        owner,
+        status,
+        progress: numericProgress,
+        dueDate: formatISODateToUA(dueDate),
+      };
+
+      return sendJson(res, project, 201);
+    })
+    .catch((error) => sendJson(res, { message: 'Не вдалося створити проєкт', error: String(error) }, 400));
+}
+
+function handleCreateNews(req, res) {
+  parseBody(req)
+    .then((parsed) => {
+      const { title, excerpt, category, author, image, featured = false } = parsed || {};
+
+      if (!title || !excerpt || !category || !author) {
+        return sendJson(res, { message: 'Поля title, excerpt, category та author є обов’язковими' }, 400);
+      }
+
+      const publishedAt = new Date().toISOString().split('T')[0];
+      const imageUrl = image || 'https://images.unsplash.com/photo-1474631245212-32dc3c8310c6?w=600&h=300&fit=crop';
+
+      const result = db
+        .prepare(
+          `INSERT INTO news (title, excerpt, category, author, published_at, image_url, featured)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run(title, excerpt, category, author, publishedAt, imageUrl, featured ? 1 : 0);
+
+      const created = {
+        id: result.lastInsertRowid,
+        title,
+        excerpt,
+        category,
+        author,
+        image: imageUrl,
+        featured: Boolean(featured),
+        date: formatISODateToUA(publishedAt),
+      };
+
+      return sendJson(res, created, 201);
+    })
+    .catch((error) => sendJson(res, { message: 'Не вдалося створити новину', error: String(error) }, 400));
+}
+
+function getAdminOverview() {
+  return {
+    users: getAllUsers(),
+    projects: getProjects(),
+    news: getNewsData().items,
+  };
 }
 
 function generateNumericToken() {
@@ -473,6 +601,23 @@ const server = http.createServer((req, res) => {
 
   if (req.method === 'GET' && pathname === '/api/documents') {
     return sendJson(res, getDocumentData());
+  }
+
+  if (pathname.startsWith('/api/admin')) {
+    const adminUser = requireAdmin(req, res);
+    if (!adminUser) return;
+
+    if (req.method === 'GET' && pathname === '/api/admin/overview') {
+      return sendJson(res, getAdminOverview());
+    }
+
+    if (req.method === 'POST' && pathname === '/api/admin/projects') {
+      return handleCreateProject(req, res);
+    }
+
+    if (req.method === 'POST' && pathname === '/api/admin/news') {
+      return handleCreateNews(req, res);
+    }
   }
 
   if (req.method === 'POST' && pathname === '/api/auth/login') {

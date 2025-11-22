@@ -4,6 +4,8 @@ import {
   DocumentsResponse,
   LoginResponse,
   NewsResponse,
+  AdminOverview,
+  Project,
   RegistrationRequest,
   RegistrationRequestResponse,
 } from './types';
@@ -126,5 +128,39 @@ export async function logout(token: string): Promise<{ message: string; revoked:
   return fetchJson<{ message: string; revoked: boolean }>(`${API_BASE}/auth/logout`, {
     method: 'POST',
     body: JSON.stringify({ token }),
+  });
+}
+
+export async function getAdminOverview(token: string): Promise<AdminOverview> {
+  return fetchJson<AdminOverview>(`${API_BASE}/admin/overview`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+  });
+}
+
+export async function createProject(token: string, payload: Omit<Project, 'id' | 'dueDate'> & { dueDate: string }): Promise<Project> {
+  return fetchJson<Project>(`${API_BASE}/admin/projects`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createNews(
+  token: string,
+  payload: { title: string; excerpt: string; category: string; author: string; image?: string; featured?: boolean },
+): Promise<NewsResponse['items'][number]> {
+  return fetchJson<NewsResponse['items'][number]>(`${API_BASE}/admin/news`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+    body: JSON.stringify(payload),
   });
 }

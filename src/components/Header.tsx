@@ -1,13 +1,15 @@
 import { Home, User, Newspaper, Calendar, FileText, Users, Bell, LogOut } from 'lucide-react';
 import type { Page } from '../App';
+import type { User } from '../api/types';
 
 interface HeaderProps {
   currentPage: Page;
   onNavigate: (page: Page) => void;
   onLogout: () => void;
+  user: User | null;
 }
 
-export function Header({ currentPage, onNavigate, onLogout }: HeaderProps) {
+export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps) {
   const menuItems = [
     { id: 'dashboard' as Page, label: 'Головна', icon: Home },
     { id: 'news' as Page, label: 'Новини', icon: Newspaper },
@@ -15,6 +17,7 @@ export function Header({ currentPage, onNavigate, onLogout }: HeaderProps) {
     { id: 'documents' as Page, label: 'Документи', icon: FileText },
     { id: 'team' as Page, label: 'Команда', icon: Users },
     { id: 'profile' as Page, label: 'Профіль', icon: User },
+    ...(user?.is_admin ? ([{ id: 'admin' as Page, label: 'Адмін', icon: User }] as const) : []),
   ];
 
   return (

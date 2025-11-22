@@ -14,8 +14,9 @@ import {
   RegistrationRequest,
   RegistrationRequestSent,
 } from './components/Register';
+import { Admin } from './components/Admin';
 
-export type Page = 'dashboard' | 'profile' | 'news' | 'calendar' | 'documents' | 'team';
+export type Page = 'dashboard' | 'profile' | 'news' | 'calendar' | 'documents' | 'team' | 'admin';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -56,7 +57,7 @@ export default function App() {
 
         if (parsed.token && parsed.user) {
           setSessionToken(parsed.token);
-          setUser(parsed.user);
+          setUser({ ...parsed.user, is_admin: Boolean((parsed.user as User).is_admin) });
           setIsAuthenticated(true);
         }
       } catch (err) {
@@ -159,6 +160,8 @@ export default function App() {
         return <Documents />;
       case 'team':
         return <Team />;
+      case 'admin':
+        return user && sessionToken ? <Admin token={sessionToken} user={user} /> : null;
       default:
         return <Dashboard onNavigate={setCurrentPage} user={user} />;
     }
@@ -166,7 +169,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header currentPage={currentPage} onNavigate={setCurrentPage} onLogout={handleLogout} />
+      <Header currentPage={currentPage} onNavigate={setCurrentPage} onLogout={handleLogout} user={user} />
       <main className="max-w-7xl mx-auto px-4 py-8">
         {renderPage()}
       </main>
