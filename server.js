@@ -8,13 +8,6 @@ const config = require('./config');
 
 const port = config.port;
 
-const normalizePath = (pathname = '') => {
-  const safePath = pathname ? decodeURIComponent(pathname) : '';
-  const trimmed = safePath.replace(/\/+$/, '');
-  if (!trimmed) return '/';
-  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-};
-
 runMigrations();
 const db = getDb();
 
@@ -328,37 +321,36 @@ function handleCompleteRegistration(req, res) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '', `http://${req.headers.host}`);
-  const pathname = normalizePath(url.pathname);
 
   if (req.method === 'OPTIONS') {
     return sendJson(res, { status: 'ok' });
   }
 
-  if (req.method === 'GET' && pathname === '/api/health') {
+  if (req.method === 'GET' && url.pathname === '/api/health') {
     return sendJson(res, { status: 'ok', database: path.basename(DB_PATH) });
   }
 
-  if (req.method === 'GET' && pathname === '/api/dashboard') {
+  if (req.method === 'GET' && url.pathname === '/api/dashboard') {
     return sendJson(res, getDashboardData());
   }
 
-  if (req.method === 'GET' && pathname === '/api/news') {
+  if (req.method === 'GET' && url.pathname === '/api/news') {
     return sendJson(res, getNewsData());
   }
 
-  if (req.method === 'GET' && pathname === '/api/documents') {
+  if (req.method === 'GET' && url.pathname === '/api/documents') {
     return sendJson(res, getDocumentData());
   }
 
-  if (req.method === 'POST' && pathname === '/api/auth/login') {
+  if (req.method === 'POST' && url.pathname === '/api/auth/login') {
     return handleLogin(req, res);
   }
 
-  if (req.method === 'POST' && pathname === '/api/auth/register-request') {
+  if (req.method === 'POST' && url.pathname === '/api/auth/register-request') {
     return handleRegisterRequest(req, res);
   }
 
-  if (req.method === 'POST' && pathname === '/api/auth/complete-registration') {
+  if (req.method === 'POST' && url.pathname === '/api/auth/complete-registration') {
     return handleCompleteRegistration(req, res);
   }
 

@@ -8,20 +8,7 @@ import {
   RegistrationRequestResponse,
 } from './types';
 
-const DEFAULT_API_BASE = 'http://localhost:4000/api';
-const API_BASE = (import.meta.env.VITE_API_URL || DEFAULT_API_BASE).replace(/\/+$/, '');
-
-class ApiError extends Error {
-  status?: number;
-  body?: unknown;
-
-  constructor(message: string, status?: number, body?: unknown) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.body = body;
-  }
-}
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -29,35 +16,17 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
     ...options,
   });
 
-  const contentType = response.headers.get('content-type') || '';
-  const rawText = await response.text();
-
   if (!response.ok) {
-    let body: unknown;
-    let message = rawText || 'Request failed';
-
     try {
-      if (rawText && contentType.includes('application/json')) {
-        body = JSON.parse(rawText);
-        message = (body as { message?: string }).message || message;
-      }
+      const errorJson = await response.json();
+      throw new Error(errorJson.message || 'Request failed');
     } catch {
-      // ignore parse errors and fall back to raw text
+      const message = await response.text();
+      throw new Error(message || 'Request failed');
     }
-
-    throw new ApiError(message, response.status, body ?? rawText);
   }
 
-  if (!rawText) {
-    return {} as T;
-  }
-
-  if (contentType.includes('application/json')) {
-    return JSON.parse(rawText) as T;
-  }
-
-  // Fallback for unexpected non-JSON success responses
-  return rawText as unknown as T;
+  return response.json();
 }
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
