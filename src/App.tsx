@@ -7,8 +7,8 @@ import { Calendar } from './components/Calendar';
 import { Documents } from './components/Documents';
 import { Team } from './components/Team';
 import { Login } from './components/Login';
-import { login as loginApi } from './api/client';
-import type { User } from './api/types';
+import { login as loginApi, logout as logoutApi } from './api/client';
+import type { LoginResponse, User } from './api/types';
 import {
   CompleteRegistration,
   RegistrationRequest,
@@ -21,6 +21,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [user, setUser] = useState<User | null>(null);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [authView, setAuthView] = useState<'login' | 'register' | 'complete' | 'registerSent'>(
     'login',
   );
@@ -46,20 +47,64 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const storedSession = sessionStorage.getItem('authSession');
+
+    if (storedSession) {
+      try {
+        const parsed: { token?: string; user?: User } = JSON.parse(storedSession);
+
+        if (parsed.token && parsed.user) {
+          setSessionToken(parsed.token);
+          setUser(parsed.user);
+          setIsAuthenticated(true);
+        }
+      } catch (err) {
+        console.error('Не вдалося відновити сесію', err);
+        sessionStorage.removeItem('authSession');
+      }
+    }
+  }, []);
+
+  const persistSession = (token: string, sessionUser: User) => {
+    setSessionToken(token);
+    sessionStorage.setItem('authSession', JSON.stringify({ token, user: sessionUser }));
+  };
+
+  const clearSession = () => {
+    setSessionToken(null);
+    sessionStorage.removeItem('authSession');
+  };
+
   const handleLogin = async (email: string, password: string) => {
     const response = await loginApi(email, password);
     setUser(response.user);
     setIsAuthenticated(true);
+    persistSession(response.token, response.user);
+    setAuthView('login');
   };
 
-  const handleRegistrationDone = (response: { user: User }) => {
+  const handleRegistrationDone = (response: LoginResponse) => {
     setUser(response.user);
     setIsAuthenticated(true);
+    persistSession(response.token, response.user);
+    setAuthView('login');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (sessionToken) {
+      try {
+        await logoutApi(sessionToken);
+      } catch (err) {
+        console.error('Не вдалося завершити сесію', err);
+      }
+    }
+
+    clearSession();
     setUser(null);
     setIsAuthenticated(false);
+    setAuthView('login');
+    setCurrentPage('dashboard');
   };
 
   if (!isAuthenticated) {

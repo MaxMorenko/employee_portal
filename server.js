@@ -17,6 +17,18 @@ const normalizePath = (pathname = '') => {
 
 runMigrations();
 const db = getDb();
+const activeSessions = new Map();
+
+function createSession(userId) {
+  const token = `session-${crypto.randomBytes(16).toString('hex')}`;
+  activeSessions.set(token, userId);
+  return token;
+}
+
+function revokeSession(token) {
+  if (!token) return false;
+  return activeSessions.delete(token);
+}
 
 const emailTransport = config.smtp.host
   ? nodemailer.createTransport({
@@ -198,7 +210,9 @@ function handleLogin(req, res) {
         return sendJson(res, { message: 'Невірні облікові дані' }, 401);
       }
 
-      return sendJson(res, { token: `demo-token-${user.id}`, user });
+      const token = createSession(user.id);
+
+      return sendJson(res, { token, user });
     })
     .catch((error) => sendJson(res, { message: 'Неправильний формат запиту', error: String(error) }, 400));
 }
@@ -220,7 +234,7 @@ function handleRegisterRequest(req, res) {
         return sendJson(res, { message: 'Користувач з таким email вже існує' }, 409);
       }
 
-      const token = crypto.randomBytes(24).toString('hex');
+      const token = generateNumericToken();
       const expiresAt = new Date(Date.now() + config.registration.tokenHours * 60 * 60 * 1000)
         .toISOString()
         .replace('T', ' ')
@@ -236,16 +250,30 @@ function handleRegisterRequest(req, res) {
 
       const confirmationLink = `${config.appBaseUrl}/register?token=${token}&email=${encodeURIComponent(email)}`;
 
+      const emailSubject = 'Завершення реєстрації в корпоративному порталі';
+
+      const messageText = `Вітаємо${name ? `, ${name}` : ''}!
+
+Ваш код підтвердження: ${token}
+
+Скопіюйте код у форму завершення реєстрації або скористайтеся посиланням нижче:
+${confirmationLink}
+
+Посилання дійсне до ${expiresAt}.`;
+
+      const messageHtml = buildRegistrationEmailHtml({
+        name,
+        token,
+        confirmationLink,
+        expiresAt,
+      });
+
       const message = {
         from: config.smtp.from,
         to: email,
-        subject: 'Завершення реєстрації в корпоративному порталі',
-        text: `Вітаємо${name ? `, ${name}` : ''}!
-
-Щоб завершити реєстрацію, перейдіть за посиланням та встановіть пароль:
-${confirmationLink}
-
-Посилання дійсне до ${expiresAt}.`,
+        subject: emailSubject,
+        text: messageText,
+        html: messageHtml,
       };
 
       await emailTransport.sendMail(message);
@@ -253,6 +281,7 @@ ${confirmationLink}
       return sendJson(res, {
         message: 'Лист із підтвердженням надіслано. Перевірте пошту, щоб завершити реєстрацію.',
         confirmationLink: emailTransport.options.jsonTransport ? confirmationLink : undefined,
+        tokenPreview: emailTransport.options.jsonTransport ? token : undefined,
         expiresAt,
       });
     })
@@ -347,9 +376,79 @@ function handleCompleteRegistration(req, res) {
         .prepare('SELECT id, name, email, department FROM users WHERE id = ?')
         .get(userId);
 
-      return sendJson(res, { token: `demo-token-${user.id}`, user });
+      const token = createSession(user.id);
+      return sendJson(res, { token, user });
     })
     .catch((error) => sendJson(res, { message: 'Помилка реєстрації', error: String(error) }, 400));
+}
+
+function handleLogout(req, res) {
+  parseBody(req)
+    .then((parsed) => {
+      const { token } = parsed || {};
+      const revoked = revokeSession(token);
+
+      return sendJson(res, {
+        message: 'Сесію завершено',
+        revoked,
+      });
+    })
+    .catch((error) => sendJson(res, { message: 'Не вдалося завершити сесію', error: String(error) }, 400));
+}
+
+function generateNumericToken() {
+  let token = '';
+  let attempts = 0;
+
+  while (!token && attempts < 5) {
+    const candidate = crypto.randomInt(0, 100000000).toString().padStart(8, '0');
+    const existing = db.prepare('SELECT 1 FROM registration_tokens WHERE token = ?').get(candidate);
+
+    if (!existing) {
+      token = candidate;
+    }
+
+    attempts += 1;
+  }
+
+  if (!token) {
+    token = crypto.randomInt(0, 100000000).toString().padStart(8, '0');
+  }
+
+  return token;
+}
+
+function buildRegistrationEmailHtml({ name = '', token, confirmationLink, expiresAt }) {
+  const greetingName = name ? `, ${name}` : '';
+
+  return `
+    <div style="font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; background:#f5f7fb; padding:24px;">
+      <div style="max-width:560px; margin:0 auto; background:#ffffff; border-radius:16px; box-shadow:0 10px 30px rgba(15,23,42,0.08); padding:28px;">
+        <h1 style="font-size:20px; color:#0f172a; margin:0 0 12px 0;">Вітаємо${greetingName}!</h1>
+        <p style="color:#475569; margin:0 0 16px 0; line-height:1.6;">
+          Ось ваш код підтвердження для завершення реєстрації. Скопіюйте його або використайте кнопку нижче.
+        </p>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px; text-align:center; margin-bottom:20px;">
+          <div style="font-size:14px; color:#475569; letter-spacing:0.4px; margin-bottom:6px;">Ваш код</div>
+          <div style="font-size:28px; font-weight:700; color:#0f172a; letter-spacing:6px;">${token}</div>
+        </div>
+
+        <a href="${confirmationLink}" style="display:inline-block; background:#2563eb; color:#ffffff; padding:12px 20px; border-radius:12px; text-decoration:none; font-weight:600; box-shadow:0 10px 20px rgba(37,99,235,0.18);">
+          Завершити реєстрацію
+        </a>
+
+        <p style="color:#475569; margin:16px 0 8px 0; line-height:1.6;">
+          Або скопіюйте посилання й відкрийте його в браузері:
+        </p>
+        <div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:10px; padding:12px 14px; font-size:13px; color:#0f172a; word-break:break-all;">
+          ${confirmationLink}
+        </div>
+
+        <p style="color:#475569; margin:16px 0 0 0; font-size:13px;">Код дійсний до ${expiresAt}.</p>
+      </div>
+    </div>
+  `;
 }
 
 const server = http.createServer((req, res) => {
@@ -386,6 +485,10 @@ const server = http.createServer((req, res) => {
 
   if (req.method === 'POST' && pathname === '/api/auth/complete-registration') {
     return handleCompleteRegistration(req, res);
+  }
+
+  if (req.method === 'POST' && pathname === '/api/auth/logout') {
+    return handleLogout(req, res);
   }
 
   sendJson(res, { message: 'Not found' }, 404);

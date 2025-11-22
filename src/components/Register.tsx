@@ -30,7 +30,7 @@ export function RegistrationRequest({ onSuccess, onBack }: RegistrationRequestPr
     try {
       const response = await requestRegistration({ email, name, department });
       setMessage(response.message);
-      onSuccess(email, response.confirmationLink);
+      onSuccess(email, response.tokenPreview || response.confirmationLink);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не вдалося надіслати запит');
     } finally {

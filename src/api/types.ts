@@ -71,6 +71,7 @@ export interface RegistrationRequest {
 export interface RegistrationRequestResponse {
   message: string;
   confirmationLink?: string;
+  tokenPreview?: string;
   expiresAt: string;
 }
 
