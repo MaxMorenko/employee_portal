@@ -337,7 +337,7 @@ function handleCompleteRegistration(req, res) {
       const transaction = db.transaction(() => {
         const result = insertUser.run(name, tokenRow.email.toLowerCase(), department, password);
         db
-          .prepare('UPDATE registration_tokens SET used = 1, used_at = datetime("now") WHERE token = ?')
+          .prepare("UPDATE registration_tokens SET used = 1, used_at = datetime('now') WHERE token = ?")
           .run(token);
         return result.lastInsertRowid;
       });
