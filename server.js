@@ -17,7 +17,6 @@ const normalizePath = (pathname = '') => {
 
 runMigrations();
 const db = getDb();
-const activeSessions = new Map();
 
 function ensureDefaultUsers() {
   const defaults = [
@@ -51,23 +50,46 @@ function ensureDefaultUsers() {
 ensureDefaultUsers();
 
 function createSession(userId) {
-  const token = `session-${crypto.randomBytes(16).toString('hex')}`;
-  activeSessions.set(token, userId);
-  return token;
+  const insert = db.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)');
+
+  let attempts = 0;
+  while (attempts < 5) {
+    const token = `session-${crypto.randomBytes(16).toString('hex')}`;
+
+    try {
+      insert.run(token, userId);
+      return token;
+    } catch (error) {
+      if (error.code !== 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+        throw error;
+      }
+    }
+
+    attempts += 1;
+  }
+
+  const fallbackToken = `session-${crypto.randomBytes(16).toString('hex')}`;
+  insert.run(fallbackToken, userId);
+  return fallbackToken;
 }
 
 function revokeSession(token) {
   if (!token) return false;
-  return activeSessions.delete(token);
+
+  const result = db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+  return result.changes > 0;
 }
 
 function getSessionUser(token) {
   if (!token) return null;
-  const userId = activeSessions.get(token);
-  if (!userId) return null;
   const user = db
-    .prepare('SELECT id, name, email, department, is_admin FROM users WHERE id = ?')
-    .get(userId);
+    .prepare(
+      `SELECT u.id, u.name, u.email, u.department, u.is_admin
+       FROM sessions s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.token = ?`
+    )
+    .get(token);
   if (!user) return null;
   return { ...user, is_admin: Boolean(user.is_admin) };
 }
