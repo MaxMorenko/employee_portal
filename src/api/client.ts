@@ -121,3 +121,10 @@ export async function completeRegistration(
     body: JSON.stringify(sanitized),
   });
 }
+
+export async function logout(token: string): Promise<{ message: string; revoked: boolean }> {
+  return fetchJson<{ message: string; revoked: boolean }>(`${API_BASE}/auth/logout`, {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
