@@ -72,14 +72,31 @@ function getSessionUser(token) {
   return { ...user, is_admin: Boolean(user.is_admin) };
 }
 
+function getSessionToken(req) {
+  const headerToken = req.headers['x-session-token'];
+  if (headerToken && !Array.isArray(headerToken)) {
+    return String(headerToken);
+  }
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && !Array.isArray(authHeader)) {
+    const [, bearerToken] = authHeader.match(/^Bearer\s+(.+)$/i) || [];
+    if (bearerToken) {
+      return bearerToken.trim();
+    }
+  }
+
+  return null;
+}
+
 function requireAdmin(req, res) {
-  const token = req.headers['x-session-token'];
-  if (!token || Array.isArray(token)) {
+  const token = getSessionToken(req);
+  if (!token) {
     sendJson(res, { message: 'Потрібен токен сесії адміністратора' }, 401);
     return null;
   }
 
-  const user = getSessionUser(String(token));
+  const user = getSessionUser(token);
   if (!user) {
     sendJson(res, { message: 'Сесію не знайдено' }, 401);
     return null;
