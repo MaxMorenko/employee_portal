@@ -31,7 +31,7 @@ const editButtonClass =
 const deleteButtonClass =
   'inline-flex items-center gap-1 px-3 py-1 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50';
 
-type AdminTab = 'home' | 'users' | 'projects' | 'news' | 'documents';
+export type AdminTab = 'home' | 'users' | 'projects' | 'news' | 'documents';
 type ProjectFormState = { id: number; name: string; owner: string; status: string; dueDate: string; progress: number | string };
 type NewsFormState = {
   id: number;
