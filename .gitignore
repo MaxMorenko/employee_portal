@@ -4,3 +4,4 @@ npm-debug.log*
 db/*.sqlite
 db/*.db
 .env
+.idea/
