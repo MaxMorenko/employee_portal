@@ -20,6 +20,8 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
     ...(user?.is_admin ? ([{ id: 'admin' as Page, label: 'Адмін', icon: User }] as const) : []),
   ];
 
+  const shouldShowNavigation = !user?.is_admin;
+
   return (
     <header className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4">
@@ -29,27 +31,29 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
               <div className="w-8 h-8 bg-blue-600 rounded-lg"></div>
               <span className="text-gray-900">Компанія</span>
             </div>
-            
-            <nav className="hidden md:flex gap-1">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = currentPage === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => onNavigate(item.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                      isActive
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
+
+            {shouldShowNavigation && (
+              <nav className="hidden md:flex gap-1">
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentPage === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => onNavigate(item.id)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                        isActive
+                          ? 'bg-blue-50 text-blue-600'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -68,26 +72,28 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
         </div>
 
         {/* Mobile menu */}
-        <nav className="md:hidden flex overflow-x-auto pb-2 gap-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentPage === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(item.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
-                  isActive
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+        {shouldShowNavigation && (
+          <nav className="md:hidden flex overflow-x-auto pb-2 gap-2">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentPage === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => onNavigate(item.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                    isActive
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
       </div>
     </header>
   );

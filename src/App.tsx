@@ -59,6 +59,7 @@ export default function App() {
           setSessionToken(parsed.token);
           setUser({ ...parsed.user, is_admin: Boolean((parsed.user as User).is_admin) });
           setIsAuthenticated(true);
+          setCurrentPage(Boolean((parsed.user as User).is_admin) ? 'admin' : 'dashboard');
         }
       } catch (err) {
         console.error('Не вдалося відновити сесію', err);
@@ -91,6 +92,7 @@ export default function App() {
     setIsAuthenticated(true);
     persistSession(response.token, response.user);
     setAuthView('login');
+    setCurrentPage(response.user.is_admin ? 'admin' : 'dashboard');
   };
 
   const handleRegistrationDone = (response: LoginResponse) => {
@@ -98,6 +100,7 @@ export default function App() {
     setIsAuthenticated(true);
     persistSession(response.token, response.user);
     setAuthView('login');
+    setCurrentPage(response.user.is_admin ? 'admin' : 'dashboard');
   };
 
   const handleLogout = async () => {
