@@ -632,6 +632,58 @@ function handleCreateProject(req, res) {
     .catch((error) => sendJson(res, { message: 'Не вдалося створити проєкт', error: String(error) }, 400));
 }
 
+function handleUpdateProject(req, res, projectId) {
+  parseBody(req)
+    .then((parsed) => {
+      const existing = db
+        .prepare('SELECT id, name, owner, status, due_date AS dueDate, progress FROM projects WHERE id = ?')
+        .get(projectId);
+
+      if (!existing) {
+        return sendJson(res, { message: 'Проєкт не знайдено' }, 404);
+      }
+
+      const {
+        name = existing.name,
+        owner = existing.owner,
+        status = existing.status,
+        dueDate = existing.dueDate,
+        progress = existing.progress,
+      } = parsed || {};
+
+      if (!name || !owner || !dueDate) {
+        return sendJson(res, { message: 'Поля name, owner та dueDate є обов’язковими' }, 400);
+      }
+
+      const numericProgress = Math.min(100, Math.max(0, Number(progress) || 0));
+
+      db
+        .prepare('UPDATE projects SET name = ?, owner = ?, status = ?, due_date = ?, progress = ? WHERE id = ?')
+        .run(name, owner, status, dueDate, numericProgress, projectId);
+
+      return sendJson(res, {
+        id: projectId,
+        name,
+        owner,
+        status,
+        progress: numericProgress,
+        dueDate: formatISODateToUA(dueDate),
+      });
+    })
+    .catch((error) => sendJson(res, { message: 'Не вдалося оновити проєкт', error: String(error) }, 400));
+}
+
+function handleDeleteProject(res, projectId) {
+  const existing = db.prepare('SELECT id FROM projects WHERE id = ?').get(projectId);
+
+  if (!existing) {
+    return sendJson(res, { message: 'Проєкт не знайдено' }, 404);
+  }
+
+  db.prepare('DELETE FROM projects WHERE id = ?').run(projectId);
+  return sendJson(res, { deleted: true });
+}
+
 function handleCreateNews(req, res) {
   parseBody(req)
     .then((parsed) => {
@@ -982,6 +1034,15 @@ const server = http.createServer((req, res) => {
 
     if (req.method === 'POST' && pathname === '/api/admin/projects') {
       return handleCreateProject(req, res);
+    }
+
+    const projectMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)$/);
+    if (projectMatch && req.method === 'PUT') {
+      return handleUpdateProject(req, res, Number(projectMatch[1]));
+    }
+
+    if (projectMatch && req.method === 'DELETE') {
+      return handleDeleteProject(res, Number(projectMatch[1]));
     }
 
     if (req.method === 'POST' && pathname === '/api/admin/news') {
