@@ -1,7 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
-import { UserPlus, Users, FolderKanban, Newspaper, Loader2, LayoutDashboard, Trash2, Edit3, BarChart3 } from 'lucide-react';
-import { createNews, createProject, createUser, deleteUser, getAdminOverview, getAdminUsers, updateUser } from '../api/client';
-import type { AdminOverview, Project, User } from '../api/types';
+import {
+  UserPlus,
+  Users,
+  FolderKanban,
+  Newspaper,
+  Loader2,
+  LayoutDashboard,
+  Trash2,
+  Edit3,
+  BarChart3,
+  FileText,
+} from 'lucide-react';
+import {
+  createNews,
+  createProject,
+  createUser,
+  deleteUser,
+  getAdminOverview,
+  getAdminUsers,
+  getDocuments,
+  updateUser,
+} from '../api/client';
+import type { AdminOverview, DocumentItem, Project, User } from '../api/types';
 
 interface AdminProps {
   token: string;
@@ -16,7 +36,7 @@ export function Admin({ token, user }: AdminProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'projects' | 'news'>('overview');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'projects' | 'news' | 'documents'>('home');
   const [projectForm, setProjectForm] = useState({
     name: '',
     owner: '',
@@ -45,6 +65,16 @@ export function Admin({ token, user }: AdminProps) {
     status: 'Активний',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [documentForm, setDocumentForm] = useState<DocumentItem>({
+    id: 0,
+    name: '',
+    type: '',
+    category: '',
+    size: '',
+    modified: new Date().toISOString().slice(0, 10),
+  });
+  const [documentError, setDocumentError] = useState<string | null>(null);
 
   const totalUsers = useMemo(() => users.length, [users]);
   const activeProjects = useMemo(() => overview?.projects.length ?? 0, [overview]);
@@ -56,8 +86,10 @@ export function Admin({ token, user }: AdminProps) {
       try {
         const data = await getAdminOverview(token);
         const loadedUsers = await getAdminUsers(token);
+        const documentData = await getDocuments();
         setOverview(data);
         setUsers(loadedUsers);
+        setDocuments(documentData.recentDocuments);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Не вдалося завантажити дані адміністратора');
       } finally {
@@ -186,6 +218,44 @@ export function Admin({ token, user }: AdminProps) {
     }
   };
 
+  const resetDocumentForm = () =>
+    setDocumentForm({ id: 0, name: '', type: '', size: '', modified: new Date().toISOString().slice(0, 10), category: '' });
+
+  const handleDocumentSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!documentForm.name.trim() || !documentForm.type.trim()) {
+      setDocumentError('Назва та тип документа обов’язкові');
+      return;
+    }
+
+    const normalized: DocumentItem = {
+      ...documentForm,
+      modified: documentForm.modified || new Date().toISOString().slice(0, 10),
+      size: documentForm.size || '—',
+      category: documentForm.category || 'Загальне',
+      id: documentForm.id || Date.now(),
+    };
+
+    if (documentForm.id) {
+      setDocuments(documents.map((doc) => (doc.id === documentForm.id ? normalized : doc)));
+    } else {
+      setDocuments([normalized, ...documents]);
+    }
+
+    resetDocumentForm();
+    setDocumentError(null);
+  };
+
+  const handleEditDocument = (doc: DocumentItem) => {
+    setDocumentForm({ ...doc });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteDocument = (id: number) => {
+    setDocuments(documents.filter((doc) => doc.id !== id));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center gap-3 text-gray-600">
@@ -211,14 +281,17 @@ export function Admin({ token, user }: AdminProps) {
             Адміністратор: {user.name}
           </p>
           <h1 className="text-gray-900">Адміністративний центр</h1>
-          <p className="text-gray-600">Керуйте користувачами, проєктами та новинами порталу</p>
+          <p className="text-gray-600">
+            Головна з оглядом, а також управління користувачами, проєктами, новинами та документами
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {[
-            { id: 'overview', label: 'Огляд', icon: LayoutDashboard },
+            { id: 'home', label: 'Головна', icon: LayoutDashboard },
             { id: 'users', label: 'Користувачі', icon: Users },
-            { id: 'projects', label: 'Проєкти', icon: FolderKanban },
-            { id: 'news', label: 'Новини', icon: Newspaper },
+            { id: 'projects', label: 'Проєкти (CRUD)', icon: FolderKanban },
+            { id: 'news', label: 'Новини (CRUD)', icon: Newspaper },
+            { id: 'documents', label: 'Документи (CRUD)', icon: FileText },
           ].map((item) => {
             const Icon = item.icon;
             return (
@@ -237,7 +310,7 @@ export function Admin({ token, user }: AdminProps) {
         </div>
       </div>
 
-      {activeTab === 'overview' && (
+      {activeTab === 'home' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
@@ -709,6 +782,142 @@ export function Admin({ token, user }: AdminProps) {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'documents' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 lg:col-span-1">
+            <h2 className="text-gray-900 mb-4">{documentForm.id ? 'Оновити документ' : 'Додати документ'}</h2>
+            <form className="space-y-3" onSubmit={handleDocumentSubmit}>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Назва</label>
+                <input
+                  type="text"
+                  value={documentForm.name}
+                  onChange={(e) => setDocumentForm({ ...documentForm, name: e.target.value })}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Категорія</label>
+                  <input
+                    type="text"
+                    value={documentForm.category}
+                    onChange={(e) => setDocumentForm({ ...documentForm, category: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Політики, Процеси, ..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Тип</label>
+                  <input
+                    type="text"
+                    value={documentForm.type}
+                    onChange={(e) => setDocumentForm({ ...documentForm, type: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Розмір</label>
+                  <input
+                    type="text"
+                    value={documentForm.size}
+                    onChange={(e) => setDocumentForm({ ...documentForm, size: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="1.2 MB"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Дата оновлення</label>
+                  <input
+                    type="date"
+                    value={documentForm.modified}
+                    onChange={(e) => setDocumentForm({ ...documentForm, modified: e.target.value })}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              {documentError ? <p className="text-sm text-red-600">{documentError}</p> : null}
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 text-white rounded-lg py-2 font-medium hover:bg-blue-700 transition-colors"
+                >
+                  {documentForm.id ? 'Зберегти зміни' : 'Створити документ'}
+                </button>
+                {documentForm.id ? (
+                  <button
+                    type="button"
+                    onClick={resetDocumentForm}
+                    className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50"
+                  >
+                    Скасувати
+                  </button>
+                ) : null}
+              </div>
+            </form>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 lg:col-span-2">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-gray-900">Документи</h2>
+                <p className="text-sm text-gray-500">Повний CRUD: створюйте, редагуйте та видаляйте записи</p>
+              </div>
+              <span className="text-sm text-gray-500">Всього: {documents.length}</span>
+            </div>
+            {documents.length === 0 ? (
+              <p className="text-sm text-gray-600">Документів ще немає. Додайте перший запис.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-100">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Назва</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Категорія</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Тип</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Розмір</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Оновлено</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Дії</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {documents.map((doc) => (
+                      <tr key={doc.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-900">{doc.name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{doc.category || 'Загальне'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{doc.type}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{doc.size || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">{doc.modified}</td>
+                        <td className="px-4 py-3 text-sm flex items-center gap-2">
+                          <button
+                            onClick={() => handleEditDocument(doc)}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            Редагувати
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDocument(doc.id)}
+                            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-red-50 text-red-700 hover:bg-red-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Видалити
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
