@@ -1,16 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  UserPlus,
-  Users,
-  FolderKanban,
-  Newspaper,
-  Loader2,
-  LayoutDashboard,
-  Trash2,
-  Edit3,
-  BarChart3,
-  FileText,
-} from 'lucide-react';
+import { Users, FolderKanban, Newspaper, Loader2, Trash2, Edit3, BarChart3, FileText } from 'lucide-react';
 import {
   createNews,
   createProject,
@@ -309,20 +298,6 @@ export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-sm text-blue-700 font-medium flex items-center gap-2">
-            <UserPlus className="w-4 h-4" />
-            Адміністратор: {user.name}
-          </p>
-          <h1 className="text-gray-900">Адміністративний центр</h1>
-          <p className="text-gray-600">
-            Головна з оглядом, а також управління користувачами, проєктами, новинами та документами
-          </p>
-        </div>
-        <AdminTabs activeTab={activeTab} onChange={setActiveTab} />
-      </div>
-
       {activeTab === 'home' && (
         <AdminHomeTab overview={overview} totalUsers={totalUsers} activeProjects={activeProjects} />
       )}
@@ -371,36 +346,6 @@ export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
           onDelete={handleDeleteDocument}
         />
       )}
-    </div>
-  );
-}
-
-function AdminTabs({ activeTab, onChange }: { activeTab: AdminTab; onChange: (tab: AdminTab) => void }) {
-  const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
-    { id: 'news', label: 'Редагування новин', icon: Newspaper },
-    { id: 'projects', label: 'Редагування проєктів', icon: FolderKanban },
-    { id: 'users', label: 'Редагування користувачів', icon: Users },
-    { id: 'documents', label: 'Редагування документів', icon: FileText },
-    { id: 'home', label: 'Головна з оглядом', icon: LayoutDashboard },
-  ];
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {tabs.map((item) => {
-        const Icon = item.icon;
-        return (
-          <button
-            key={item.id}
-            onClick={() => onChange(item.id)}
-            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-              activeTab === item.id ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            {item.label}
-          </button>
-        );
-      })}
     </div>
   );
 }
