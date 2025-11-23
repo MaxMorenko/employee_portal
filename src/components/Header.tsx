@@ -20,8 +20,6 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
     ...(user?.is_admin ? ([{ id: 'admin' as Page, label: 'Адмін', icon: User }] as const) : []),
   ];
 
-  const shouldShowNavigation = !user?.is_admin;
-
   return (
     <header className="bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-4">
@@ -32,28 +30,26 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
               <span className="text-gray-900">Компанія</span>
             </div>
 
-            {shouldShowNavigation && (
-              <nav className="hidden md:flex flex-wrap gap-2">
-                {menuItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = currentPage === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => onNavigate(item.id)}
-                      className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                        isActive
-                          ? 'border-blue-200 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            )}
+            <nav className="hidden md:flex gap-1">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = currentPage === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-600'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
           </div>
 
           <div className="flex items-center gap-4">
@@ -72,28 +68,26 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
         </div>
 
         {/* Mobile menu */}
-        {shouldShowNavigation && (
-          <nav className="md:hidden flex overflow-x-auto pb-2 gap-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentPage === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm whitespace-nowrap transition-colors ${
-                    isActive
-                      ? 'border-blue-200 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        )}
+        <nav className="md:hidden flex overflow-x-auto pb-2 gap-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => onNavigate(item.id)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
     </header>
   );
