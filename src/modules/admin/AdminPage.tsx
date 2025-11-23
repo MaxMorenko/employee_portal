@@ -4,11 +4,13 @@ import {
   createNews,
   createProject,
   createUser,
+  deleteProject,
   deleteNews,
   deleteUser,
   getAdminOverview,
   getAdminUsers,
   getDocuments,
+  updateProject,
   updateNews,
   updateUser,
 } from '../../api/client';
@@ -24,9 +26,13 @@ interface AdminProps {
 
 const projectStatuses = ['Планування', 'В роботі', 'Тестування', 'Завершено'];
 const userStatuses = ['Активний', 'Втомився', 'Скоро відпустка', 'У відпустці'];
+const editButtonClass =
+  'inline-flex items-center gap-1 px-3 py-1 border border-gray-200 rounded-lg text-sm text-gray-800 hover:bg-gray-50';
+const deleteButtonClass =
+  'inline-flex items-center gap-1 px-3 py-1 border border-red-200 text-red-600 rounded-lg text-sm hover:bg-red-50';
 
 type AdminTab = 'home' | 'users' | 'projects' | 'news' | 'documents';
-type ProjectFormState = { name: string; owner: string; status: string; dueDate: string; progress: number | string };
+type ProjectFormState = { id: number; name: string; owner: string; status: string; dueDate: string; progress: number | string };
 type NewsFormState = {
   id: number;
   title: string;
@@ -51,19 +57,15 @@ type UserFormState = {
 
 type DocumentFormState = DocumentItem;
 
+const initialProjectForm: ProjectFormState = { id: 0, name: '', owner: '', status: 'В роботі', dueDate: '', progress: 50 };
+
 export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
-  const [projectForm, setProjectForm] = useState<ProjectFormState>({
-    name: '',
-    owner: '',
-    status: 'В роботі',
-    dueDate: '',
-    progress: 50,
-  });
+  const [projectForm, setProjectForm] = useState<ProjectFormState>(initialProjectForm);
   const [newsForm, setNewsForm] = useState<NewsFormState>({
     id: 0,
     title: '',
@@ -125,23 +127,66 @@ export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
     setActiveTab(initialTab);
   }, [initialTab]);
 
+  const resetProjectForm = () => setProjectForm(initialProjectForm);
+
   const handleProjectSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!overview) return;
 
     setSubmitting(true);
     try {
-      const created = await createProject(token, {
-        ...projectForm,
+      const payload = {
+        name: projectForm.name,
+        owner: projectForm.owner,
+        status: projectForm.status,
+        dueDate: projectForm.dueDate,
         progress: Number(projectForm.progress),
-      });
-      setOverview({
-        ...overview,
-        projects: [created, ...overview.projects],
-      });
-      setProjectForm({ name: '', owner: '', status: 'В роботі', dueDate: '', progress: 50 });
+      };
+
+      if (projectForm.id) {
+        const updated = await updateProject(token, projectForm.id, payload);
+        setOverview({
+          ...overview,
+          projects: overview.projects.map((project) => (project.id === projectForm.id ? updated : project)),
+        });
+      } else {
+        const created = await createProject(token, payload);
+        setOverview({
+          ...overview,
+          projects: [created, ...overview.projects],
+        });
+      }
+      resetProjectForm();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не вдалося створити проєкт');
+      setError(err instanceof Error ? err.message : 'Не вдалося зберегти проєкт');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditProject = (project: Project) => {
+    setProjectForm({
+      id: project.id,
+      name: project.name,
+      owner: project.owner,
+      status: project.status,
+      dueDate: project.dueDate,
+      progress: project.progress,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteProject = async (id: number) => {
+    if (!overview) return;
+    setSubmitting(true);
+    try {
+      await deleteProject(token, id);
+      setOverview({ ...overview, projects: overview.projects.filter((project) => project.id !== id) });
+      if (projectForm.id === id) {
+        resetProjectForm();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не вдалося видалити проєкт');
     } finally {
       setSubmitting(false);
     }
@@ -384,6 +429,9 @@ export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
           submitting={submitting}
           onChange={setProjectForm}
           onSubmit={handleProjectSubmit}
+          onEdit={handleEditProject}
+          onDelete={handleDeleteProject}
+          onReset={resetProjectForm}
         />
       )}
 
@@ -638,7 +686,7 @@ function UserManagementTab({
                   <button
                     type="button"
                     onClick={() => onEdit(u)}
-                    className="inline-flex items-center gap-1 px-3 py-1 border border-gray-200 rounded-lg text-sm"
+                    className={editButtonClass}
                   >
                     <Edit3 className="w-4 h-4" />
                     Редагувати
@@ -646,7 +694,7 @@ function UserManagementTab({
                   <button
                     type="button"
                     onClick={() => onDelete(u.id)}
-                    className="inline-flex items-center gap-1 px-3 py-1 border border-red-200 text-red-600 rounded-lg text-sm"
+                    className={deleteButtonClass}
                   >
                     <Trash2 className="w-4 h-4" />
                     Видалити
@@ -667,16 +715,26 @@ function ProjectManagementTab({
   submitting,
   onChange,
   onSubmit,
+  onEdit,
+  onDelete,
+  onReset,
 }: {
   overview: AdminOverview;
   projectForm: ProjectFormState;
   submitting: boolean;
   onChange: (value: ProjectFormState) => void;
   onSubmit: (event: React.FormEvent) => void;
+  onEdit: (project: Project) => void;
+  onDelete: (id: number) => void;
+  onReset: () => void;
 }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <ContentCard title="Новий проєкт" description="Додати новий проєкт" className="lg:col-span-1">
+      <ContentCard
+        title={projectForm.id ? 'Оновити проєкт' : 'Новий проєкт'}
+        description={projectForm.id ? 'Редагування існуючої ініціативи' : 'Додати новий проєкт'}
+        className="lg:col-span-1"
+      >
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="text-sm text-gray-700">Назва проєкту</label>
@@ -735,8 +793,17 @@ function ProjectManagementTab({
             disabled={submitting}
             className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {submitting ? 'Створення...' : 'Додати проєкт'}
+            {submitting ? 'Збереження...' : projectForm.id ? 'Оновити проєкт' : 'Додати проєкт'}
           </button>
+          {projectForm.id ? (
+            <button
+              type="button"
+              onClick={onReset}
+              className="w-full border border-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-50"
+            >
+              Скасувати редагування
+            </button>
+          ) : null}
         </form>
       </ContentCard>
 
@@ -753,6 +820,14 @@ function ProjectManagementTab({
                 <p className="text-sm text-gray-600">Дедлайн: {project.dueDate}</p>
                 <div className="w-full bg-gray-100 rounded-full h-2">
                   <div className="h-2 rounded-full bg-green-600" style={{ width: `${project.progress}%` }}></div>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <button type="button" onClick={() => onEdit(project)} className={editButtonClass}>
+                    <Edit3 className="w-4 h-4" /> Редагувати
+                  </button>
+                  <button type="button" onClick={() => onDelete(project.id)} className={deleteButtonClass}>
+                    <Trash2 className="w-4 h-4" /> Видалити
+                  </button>
                 </div>
               </div>
             ))}
@@ -877,14 +952,14 @@ function NewsManagementTab({
                 <p className="text-xs text-gray-400">Опубліковано: {item.date}</p>
                 <div className="flex items-center gap-2 pt-1">
                   <button
-                    className="inline-flex items-center gap-1 px-3 py-1 text-sm text-blue-700 bg-blue-50 rounded hover:bg-blue-100"
+                    className={editButtonClass}
                     onClick={() => onEdit(item)}
                     type="button"
                   >
                     <Edit3 className="w-4 h-4" /> Редагувати
                   </button>
                   <button
-                    className="inline-flex items-center gap-1 px-3 py-1 text-sm text-red-700 bg-red-50 rounded hover:bg-red-100"
+                    className={deleteButtonClass}
                     onClick={() => onDelete(item.id)}
                     type="button"
                   >
@@ -998,7 +1073,7 @@ function DocumentManagementTab({
                   <button
                     type="button"
                     onClick={() => onEdit(doc)}
-                    className="inline-flex items-center gap-1 px-3 py-1 border border-gray-200 rounded-lg text-sm"
+                    className={editButtonClass}
                   >
                     <Edit3 className="w-4 h-4" />
                     Редагувати
@@ -1006,7 +1081,7 @@ function DocumentManagementTab({
                   <button
                     type="button"
                     onClick={() => onDelete(doc.id)}
-                    className="inline-flex items-center gap-1 px-3 py-1 border border-red-200 text-red-600 rounded-lg text-sm"
+                    className={deleteButtonClass}
                   >
                     <Trash2 className="w-4 h-4" />
                     Видалити

@@ -193,6 +193,31 @@ export async function createProject(token: string, payload: Omit<Project, 'id' |
   });
 }
 
+export async function updateProject(
+  token: string,
+  id: number,
+  payload: Omit<Project, 'id' | 'dueDate'> & { dueDate: string },
+): Promise<Project> {
+  return fetchJson<Project>(`${API_BASE}/admin/projects/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteProject(token: string, id: number): Promise<{ deleted: boolean }> {
+  return fetchJson<{ deleted: boolean }>(`${API_BASE}/admin/projects/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+  });
+}
+
 export async function createNews(
   token: string,
   payload: { title: string; excerpt: string; category: string; author: string; image?: string; featured?: boolean },
