@@ -1,4 +1,15 @@
-import { Home, User, Newspaper, Calendar, FileText, Users, Bell, LogOut } from 'lucide-react';
+import {
+  Home,
+  User,
+  Newspaper,
+  Calendar,
+  FileText,
+  Users,
+  Bell,
+  LogOut,
+  LayoutDashboard,
+  FolderKanban,
+} from 'lucide-react';
 import type { Page } from '../App';
 import type { User } from '../api/types';
 
@@ -10,15 +21,25 @@ interface HeaderProps {
 }
 
 export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps) {
-  const menuItems = [
-    { id: 'dashboard' as Page, label: 'Головна', icon: Home },
-    { id: 'news' as Page, label: 'Новини', icon: Newspaper },
-    { id: 'calendar' as Page, label: 'Календар', icon: Calendar },
-    { id: 'documents' as Page, label: 'Документи', icon: FileText },
-    { id: 'team' as Page, label: 'Команда', icon: Users },
-    { id: 'profile' as Page, label: 'Профіль', icon: User },
-    ...(user?.is_admin ? ([{ id: 'admin' as Page, label: 'Адмін', icon: User }] as const) : []),
-  ];
+  const menuItems = user?.is_admin
+    ? (
+        [
+          { id: 'admin-overview' as Page, label: 'Огляд', icon: LayoutDashboard },
+          { id: 'admin-news' as Page, label: 'Редагувати новини', icon: Newspaper },
+          { id: 'admin-projects' as Page, label: 'Редагувати проєкти', icon: FolderKanban },
+          { id: 'admin-users' as Page, label: 'Редагувати користувачів', icon: Users },
+          { id: 'admin-documents' as Page, label: 'Редагувати документи', icon: FileText },
+          { id: 'profile' as Page, label: 'Профіль', icon: User },
+        ] as const
+      )
+    : ([
+        { id: 'dashboard' as Page, label: 'Головна', icon: Home },
+        { id: 'news' as Page, label: 'Новини', icon: Newspaper },
+        { id: 'calendar' as Page, label: 'Календар', icon: Calendar },
+        { id: 'documents' as Page, label: 'Документи', icon: FileText },
+        { id: 'team' as Page, label: 'Команда', icon: Users },
+        { id: 'profile' as Page, label: 'Профіль', icon: User },
+      ] as const);
 
   return (
     <header className="bg-white shadow-sm">
