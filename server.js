@@ -298,6 +298,20 @@ function formatISODateToUA(isoDate) {
   return formatUADate(`${day} ${month} ${year}`);
 }
 
+function mapNewsRowToItem(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    excerpt: row.excerpt,
+    category: row.category,
+    author: row.author,
+    image: row.image || row.image_url,
+    featured: Boolean(row.featured),
+    date: formatISODateToUA(row.published_at),
+    viewCount: row.view_count ?? row.viewCount ?? 0,
+  };
+}
+
 function getNewsData() {
   const items = db
     .prepare(
@@ -306,11 +320,7 @@ function getNewsData() {
        ORDER BY published_at DESC, id DESC`
     )
     .all()
-    .map((item) => ({
-      ...item,
-      featured: Boolean(item.featured),
-      date: formatISODateToUA(item.published_at),
-    }));
+    .map(mapNewsRowToItem);
 
   const categories = ['Всі', ...new Set(items.map((i) => i.category))];
   return { items, categories };
@@ -658,6 +668,59 @@ function handleCreateNews(req, res) {
     .catch((error) => sendJson(res, { message: 'Не вдалося створити новину', error: String(error) }, 400));
 }
 
+function handleUpdateNews(req, res, id) {
+  parseBody(req)
+    .then((parsed) => {
+      const { title, excerpt, category, author, image, featured = false } = parsed || {};
+
+      if (!title || !excerpt || !category || !author) {
+        return sendJson(res, { message: 'Поля title, excerpt, category та author є обов’язковими' }, 400);
+      }
+
+      const existing = db
+        .prepare(
+          `SELECT id, title, excerpt, category, author, published_at, image_url, featured, view_count
+           FROM news WHERE id = ?`
+        )
+        .get(id);
+
+      if (!existing) {
+        return sendJson(res, { message: 'Новину не знайдено' }, 404);
+      }
+
+      const imageUrl = image || existing.image_url;
+      db
+        .prepare(
+          `UPDATE news SET title = ?, excerpt = ?, category = ?, author = ?, image_url = ?, featured = ?
+           WHERE id = ?`
+        )
+        .run(title, excerpt, category, author, imageUrl, featured ? 1 : 0, id);
+
+      const updated = mapNewsRowToItem({
+        ...existing,
+        title,
+        excerpt,
+        category,
+        author,
+        image_url: imageUrl,
+        featured,
+      });
+
+      return sendJson(res, updated);
+    })
+    .catch((error) => sendJson(res, { message: 'Не вдалося оновити новину', error: String(error) }, 400));
+}
+
+function handleDeleteNews(res, id) {
+  const existing = db.prepare('SELECT id FROM news WHERE id = ?').get(id);
+  if (!existing) {
+    return sendJson(res, { message: 'Новину не знайдено' }, 404);
+  }
+
+  db.prepare('DELETE FROM news WHERE id = ?').run(id);
+  return sendJson(res, { deleted: true });
+}
+
 function handleCreateUser(req, res) {
   parseBody(req)
     .then((body) => {
@@ -923,6 +986,15 @@ const server = http.createServer((req, res) => {
 
     if (req.method === 'POST' && pathname === '/api/admin/news') {
       return handleCreateNews(req, res);
+    }
+
+    const newsMatch = pathname.match(/^\/api\/admin\/news\/(\d+)$/);
+    if (newsMatch && req.method === 'PUT') {
+      return handleUpdateNews(req, res, Number(newsMatch[1]));
+    }
+
+    if (newsMatch && req.method === 'DELETE') {
+      return handleDeleteNews(res, Number(newsMatch[1]));
     }
   }
 

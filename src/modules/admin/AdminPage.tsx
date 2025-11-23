@@ -4,10 +4,12 @@ import {
   createNews,
   createProject,
   createUser,
+  deleteNews,
   deleteUser,
   getAdminOverview,
   getAdminUsers,
   getDocuments,
+  updateNews,
   updateUser,
 } from '../../api/client';
 import type { AdminOverview, DocumentItem, Project, User } from '../../api/types';
@@ -25,7 +27,15 @@ const userStatuses = ['Активний', 'Втомився', 'Скоро від
 
 type AdminTab = 'home' | 'users' | 'projects' | 'news' | 'documents';
 type ProjectFormState = { name: string; owner: string; status: string; dueDate: string; progress: number | string };
-type NewsFormState = { title: string; excerpt: string; category: string; author: string; image: string; featured: boolean };
+type NewsFormState = {
+  id: number;
+  title: string;
+  excerpt: string;
+  category: string;
+  author: string;
+  image: string;
+  featured: boolean;
+};
 type UserFormState = {
   id: number;
   name: string;
@@ -55,6 +65,7 @@ export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
     progress: 50,
   });
   const [newsForm, setNewsForm] = useState<NewsFormState>({
+    id: 0,
     title: '',
     excerpt: '',
     category: '',
@@ -136,20 +147,72 @@ export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
     }
   };
 
+  const resetNewsForm = () =>
+    setNewsForm({ id: 0, title: '', excerpt: '', category: '', author: user.name, image: '', featured: false });
+
   const handleNewsSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!overview) return;
 
     setSubmitting(true);
     try {
-      const created = await createNews(token, newsForm);
+      const payload = {
+        title: newsForm.title,
+        excerpt: newsForm.excerpt,
+        category: newsForm.category,
+        author: newsForm.author,
+        image: newsForm.image,
+        featured: newsForm.featured,
+      };
+
+      if (newsForm.id) {
+        const updated = await updateNews(token, newsForm.id, payload);
+        setOverview({
+          ...overview,
+          news: overview.news.map((item) => (item.id === newsForm.id ? updated : item)),
+        });
+      } else {
+        const created = await createNews(token, payload);
+        setOverview({
+          ...overview,
+          news: [created, ...overview.news],
+        });
+      }
+      resetNewsForm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не вдалося зберегти новину');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditNews = (item: AdminOverview['news'][number]) => {
+    setNewsForm({
+      id: item.id,
+      title: item.title,
+      excerpt: item.excerpt,
+      category: item.category,
+      author: item.author,
+      image: item.image,
+      featured: item.featured,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteNews = async (id: number) => {
+    if (!overview) return;
+    setSubmitting(true);
+    try {
+      await deleteNews(token, id);
       setOverview({
         ...overview,
-        news: [created, ...overview.news],
+        news: overview.news.filter((item) => item.id !== id),
       });
-      setNewsForm({ title: '', excerpt: '', category: '', author: user.name, image: '', featured: false });
+      if (newsForm.id === id) {
+        resetNewsForm();
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Не вдалося створити новину');
+      setError(err instanceof Error ? err.message : 'Не вдалося видалити новину');
     } finally {
       setSubmitting(false);
     }
@@ -331,6 +394,9 @@ export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
           submitting={submitting}
           onChange={setNewsForm}
           onSubmit={handleNewsSubmit}
+          onEdit={handleEditNews}
+          onDelete={handleDeleteNews}
+          onReset={resetNewsForm}
         />
       )}
 
@@ -703,16 +769,26 @@ function NewsManagementTab({
   submitting,
   onChange,
   onSubmit,
+  onEdit,
+  onDelete,
+  onReset,
 }: {
   overview: AdminOverview;
   newsForm: NewsFormState;
   submitting: boolean;
   onChange: (value: NewsFormState) => void;
   onSubmit: (event: React.FormEvent) => void;
+  onEdit: (news: AdminOverview['news'][number]) => void;
+  onDelete: (id: number) => void;
+  onReset: () => void;
 }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <ContentCard title="Створити новину" description="Публікація новин для співробітників" className="lg:col-span-1">
+      <ContentCard
+        title={newsForm.id ? 'Оновити новину' : 'Створити новину'}
+        description={newsForm.id ? 'Редагування існуючого запису' : 'Публікація новин для співробітників'}
+        className="lg:col-span-1"
+      >
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="text-sm text-gray-700">Заголовок</label>
@@ -773,8 +849,17 @@ function NewsManagementTab({
             disabled={submitting}
             className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {submitting ? 'Публікація...' : 'Опублікувати'}
+            {submitting ? 'Збереження...' : newsForm.id ? 'Оновити' : 'Опублікувати'}
           </button>
+          {newsForm.id ? (
+            <button
+              type="button"
+              onClick={onReset}
+              className="w-full border border-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-50"
+            >
+              Скасувати редагування
+            </button>
+          ) : null}
         </form>
       </ContentCard>
 
@@ -790,6 +875,22 @@ function NewsManagementTab({
                 <p className="text-sm text-gray-600">Автор: {item.author}</p>
                 <p className="text-sm text-gray-500">{item.excerpt}</p>
                 <p className="text-xs text-gray-400">Опубліковано: {item.date}</p>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    className="inline-flex items-center gap-1 px-3 py-1 text-sm text-blue-700 bg-blue-50 rounded hover:bg-blue-100"
+                    onClick={() => onEdit(item)}
+                    type="button"
+                  >
+                    <Edit3 className="w-4 h-4" /> Редагувати
+                  </button>
+                  <button
+                    className="inline-flex items-center gap-1 px-3 py-1 text-sm text-red-700 bg-red-50 rounded hover:bg-red-100"
+                    onClick={() => onDelete(item.id)}
+                    type="button"
+                  >
+                    <Trash2 className="w-4 h-4" /> Видалити
+                  </button>
+                </div>
               </div>
             ))}
           </div>
