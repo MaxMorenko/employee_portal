@@ -24,12 +24,11 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
   const menuItems = user?.is_admin
     ? (
         [
-          { id: 'admin-overview' as Page, label: 'Огляд', icon: LayoutDashboard },
-          { id: 'admin-news' as Page, label: 'Редагувати новини', icon: Newspaper },
-          { id: 'admin-projects' as Page, label: 'Редагувати проєкти', icon: FolderKanban },
-          { id: 'admin-users' as Page, label: 'Редагувати користувачів', icon: Users },
-          { id: 'admin-documents' as Page, label: 'Редагувати документи', icon: FileText },
-          { id: 'profile' as Page, label: 'Профіль', icon: User },
+          { id: 'admin-overview' as Page, label: 'Головна', icon: LayoutDashboard },
+          { id: 'admin-news' as Page, label: 'Новини', icon: Newspaper },
+          { id: 'admin-projects' as Page, label: 'Проєкти', icon: FolderKanban },
+          { id: 'admin-users' as Page, label: 'Користувачі', icon: Users },
+          { id: 'admin-documents' as Page, label: 'Документи', icon: FileText },
         ] as const
       )
     : ([
