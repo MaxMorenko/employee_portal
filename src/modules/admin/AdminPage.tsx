@@ -28,6 +28,7 @@ import { StatCard } from '../shared/components/StatCard';
 interface AdminProps {
   token: string;
   user: User;
+  initialTab?: AdminTab;
 }
 
 const projectStatuses = ['Планування', 'В роботі', 'Тестування', 'Завершено'];
@@ -51,12 +52,12 @@ type UserFormState = {
 
 type DocumentFormState = DocumentItem;
 
-export function AdminPage({ token, user }: AdminProps) {
+export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
   const [overview, setOverview] = useState<AdminOverview | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<AdminTab>('home');
+  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
   const [projectForm, setProjectForm] = useState<ProjectFormState>({
     name: '',
     owner: '',
@@ -119,6 +120,10 @@ export function AdminPage({ token, user }: AdminProps) {
 
     load();
   }, [token]);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const handleProjectSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -372,11 +377,11 @@ export function AdminPage({ token, user }: AdminProps) {
 
 function AdminTabs({ activeTab, onChange }: { activeTab: AdminTab; onChange: (tab: AdminTab) => void }) {
   const tabs: { id: AdminTab; label: string; icon: typeof LayoutDashboard }[] = [
-    { id: 'home', label: 'Головна', icon: LayoutDashboard },
-    { id: 'users', label: 'Користувачі', icon: Users },
-    { id: 'projects', label: 'Проєкти (CRUD)', icon: FolderKanban },
-    { id: 'news', label: 'Новини (CRUD)', icon: Newspaper },
-    { id: 'documents', label: 'Документи (CRUD)', icon: FileText },
+    { id: 'news', label: 'Редагування новин', icon: Newspaper },
+    { id: 'projects', label: 'Редагування проєктів', icon: FolderKanban },
+    { id: 'users', label: 'Редагування користувачів', icon: Users },
+    { id: 'documents', label: 'Редагування документів', icon: FileText },
+    { id: 'home', label: 'Головна з оглядом', icon: LayoutDashboard },
   ];
 
   return (

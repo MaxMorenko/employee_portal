@@ -16,7 +16,18 @@ import { News } from './modules/user/News';
 import { Profile } from './modules/user/Profile';
 import { Team } from './modules/user/Team';
 
-export type Page = 'dashboard' | 'profile' | 'news' | 'calendar' | 'documents' | 'team' | 'admin';
+export type Page =
+  | 'dashboard'
+  | 'profile'
+  | 'news'
+  | 'calendar'
+  | 'documents'
+  | 'team'
+  | 'admin-overview'
+  | 'admin-news'
+  | 'admin-projects'
+  | 'admin-users'
+  | 'admin-documents';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -59,7 +70,7 @@ export default function App() {
           setSessionToken(parsed.token);
           setUser({ ...parsed.user, is_admin: Boolean((parsed.user as User).is_admin) });
           setIsAuthenticated(true);
-          setCurrentPage(Boolean((parsed.user as User).is_admin) ? 'admin' : 'dashboard');
+          setCurrentPage(Boolean((parsed.user as User).is_admin) ? 'admin-overview' : 'dashboard');
         }
       } catch (err) {
         console.error('Не вдалося відновити сесію', err);
@@ -92,7 +103,7 @@ export default function App() {
     setIsAuthenticated(true);
     persistSession(response.token, response.user);
     setAuthView('login');
-    setCurrentPage(response.user.is_admin ? 'admin' : 'dashboard');
+    setCurrentPage(response.user.is_admin ? 'admin-overview' : 'dashboard');
   };
 
   const handleRegistrationDone = (response: LoginResponse) => {
@@ -100,7 +111,7 @@ export default function App() {
     setIsAuthenticated(true);
     persistSession(response.token, response.user);
     setAuthView('login');
-    setCurrentPage(response.user.is_admin ? 'admin' : 'dashboard');
+    setCurrentPage(response.user.is_admin ? 'admin-overview' : 'dashboard');
   };
 
   const handleLogout = async () => {
@@ -171,8 +182,26 @@ export default function App() {
         return <Documents />;
       case 'team':
         return <Team />;
-      case 'admin':
-        return user && sessionToken ? <AdminPage token={sessionToken} user={user} /> : null;
+      case 'admin-overview':
+        return user && sessionToken ? (
+          <AdminPage token={sessionToken} user={user} initialTab="home" />
+        ) : null;
+      case 'admin-news':
+        return user && sessionToken ? (
+          <AdminPage token={sessionToken} user={user} initialTab="news" />
+        ) : null;
+      case 'admin-projects':
+        return user && sessionToken ? (
+          <AdminPage token={sessionToken} user={user} initialTab="projects" />
+        ) : null;
+      case 'admin-users':
+        return user && sessionToken ? (
+          <AdminPage token={sessionToken} user={user} initialTab="users" />
+        ) : null;
+      case 'admin-documents':
+        return user && sessionToken ? (
+          <AdminPage token={sessionToken} user={user} initialTab="documents" />
+        ) : null;
       default:
         return <Dashboard onNavigate={setCurrentPage} user={user} />;
     }
