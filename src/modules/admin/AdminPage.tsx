@@ -98,6 +98,7 @@ export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
     modified: new Date().toISOString().slice(0, 10),
   });
   const [documentError, setDocumentError] = useState<string | null>(null);
+  const cardVariant: 'dark' = 'dark';
 
   const totalUsers = useMemo(() => users.length, [users]);
   const activeProjects = useMemo(() => overview?.projects.length ?? 0, [overview]);
@@ -476,20 +477,23 @@ function AdminHomeTab({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Користувачі" value={totalUsers} icon={<Users className="w-6 h-6" />} />
+        <StatCard variant="dark" title="Користувачі" value={totalUsers} icon={<Users className="w-6 h-6" />} />
         <StatCard
+          variant="dark"
           title="Активні проєкти"
           value={activeProjects}
           icon={<FolderKanban className="w-6 h-6" />}
           accentClassName="bg-green-500 text-white"
         />
         <StatCard
+          variant="dark"
           title="Новини"
           value={overview.news.length}
           icon={<Newspaper className="w-6 h-6" />}
           accentClassName="bg-orange-500 text-white"
         />
         <StatCard
+          variant="dark"
           title="Перегляди новин"
           value={overview.stats.newsViews}
           helperText={`Останній логін: ${overview.stats.lastLogin || '—'}`}
@@ -499,7 +503,7 @@ function AdminHomeTab({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ContentCard title="Активні проєкти" description="Відстеження прогресу">
+        <ContentCard variant={cardVariant} title="Активні проєкти" description="Відстеження прогресу">
           <div className="space-y-3">
             {overview.projects.map((project: Project) => (
               <div key={project.id} className="border border-gray-100 rounded-lg p-4">
@@ -522,7 +526,7 @@ function AdminHomeTab({
           </div>
         </ContentCard>
 
-        <ContentCard title="Огляд активності" description="Активні сесії">
+        <ContentCard variant={cardVariant} title="Огляд активності" description="Активні сесії">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -670,7 +674,7 @@ function UserManagementTab({
       </ContentCard>
 
       <div className="lg:col-span-2 space-y-4">
-        <ContentCard title="Список користувачів" description="Редагування та видалення">
+        <ContentCard variant={cardVariant} title="Список користувачів" description="Редагування та видалення">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {users.map((u) => (
               <div key={u.id} className="border border-gray-100 rounded-lg p-4 flex flex-col gap-2">
@@ -808,7 +812,7 @@ function ProjectManagementTab({
       </ContentCard>
 
       <div className="lg:col-span-2 space-y-4">
-        <ContentCard title="Активні проєкти" description="Останні ініціативи">
+        <ContentCard variant={cardVariant} title="Активні проєкти" description="Останні ініціативи">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {overview.projects.map((project) => (
               <div key={project.id} className="border border-gray-100 rounded-lg p-4 space-y-2">
@@ -939,7 +943,7 @@ function NewsManagementTab({
       </ContentCard>
 
       <div className="lg:col-span-2 space-y-4">
-        <ContentCard title="Останні новини" description="Контент для працівників">
+        <ContentCard variant={cardVariant} title="Останні новини" description="Контент для працівників">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {overview.news.map((item) => (
               <div key={item.id} className="border border-gray-100 rounded-lg p-4 space-y-2">
@@ -996,7 +1000,7 @@ function DocumentManagementTab({
 }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <ContentCard title="Новий документ" description="Додайте або оновіть документ" className="lg:col-span-1">
+      <ContentCard variant={cardVariant} title="Новий документ" description="Додайте або оновіть документ" className="lg:col-span-1">
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="text-sm text-gray-700">Назва</label>
@@ -1058,7 +1062,7 @@ function DocumentManagementTab({
       </ContentCard>
 
       <div className="lg:col-span-2 space-y-4">
-        <ContentCard title="Документи" description="Каталог важливих файлів">
+        <ContentCard variant={cardVariant} title="Документи" description="Каталог важливих файлів">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {documents.map((doc) => (
               <div key={doc.id} className="border border-gray-100 rounded-lg p-4 space-y-2">

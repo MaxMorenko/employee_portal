@@ -207,12 +207,22 @@ export default function App() {
     }
   };
 
+  const isAdminView = Boolean(user?.is_admin && currentPage.startsWith('admin'));
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header currentPage={currentPage} onNavigate={setCurrentPage} onLogout={handleLogout} user={user} />
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        {renderPage()}
-      </main>
+    <div
+      className={`min-h-screen ${
+        isAdminView ? 'admin-theme bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'
+      }`}
+    >
+      <Header
+        currentPage={currentPage}
+        onNavigate={setCurrentPage}
+        onLogout={handleLogout}
+        user={user}
+        theme={isAdminView ? 'admin' : 'user'}
+      />
+      <main className="max-w-7xl mx-auto px-4 py-8">{renderPage()}</main>
     </div>
   );
 }
