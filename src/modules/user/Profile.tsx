@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Mail, Phone, MapPin, Briefcase, Calendar, Award, Edit, Sparkles } from 'lucide-react';
-import { updateProfileStatus } from '../api/client';
-import type { User } from '../api/types';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import { updateProfileStatus } from '../../api/client';
+import type { User } from '../../api/types';
+import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 
 interface ProfileProps {
   user: User;

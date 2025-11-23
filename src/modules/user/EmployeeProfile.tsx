@@ -1,8 +1,8 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "./ui/sheet";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { Badge } from "./ui/badge";
-import { Mail, Phone, MapPin, Calendar, Clock, Briefcase, User, Users, Trophy, Heart } from "lucide-react";
-import { TeamMember } from "./TeamTree";
+import { Mail, Phone, MapPin, Calendar, Clock, Briefcase, User, Users, Trophy, Heart } from 'lucide-react';
+import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
+import { Badge } from '../../components/ui/badge';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../../components/ui/sheet';
+import { TeamMember } from './TeamTree';
 
 function getDuration(startDateStr: string) {
   const start = new Date(startDateStr);

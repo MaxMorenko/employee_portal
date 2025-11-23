@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Calendar, FileText, Users, TrendingUp, Clock, CheckCircle } from 'lucide-react';
-import type { Page } from '../App';
-import { getDashboard } from '../api/client';
-import type { DashboardData, User } from '../api/types';
+import { ContentCard } from '../shared/components/ContentCard';
+import { StatCard } from '../shared/components/StatCard';
+import type { Page } from '../../App';
+import { getDashboard } from '../../api/client';
+import type { DashboardData, User } from '../../api/types';
 
 interface DashboardProps {
   onNavigate: (page: Page) => void;
@@ -53,33 +55,26 @@ export function Dashboard({ onNavigate, user }: DashboardProps) {
         {data.stats.map((stat) => {
           const Icon = iconMap[stat.icon] || TrendingUp;
           return (
-            <div key={stat.label} className="bg-white p-6 rounded-xl shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600">{stat.label}</p>
-                  <p className="text-gray-900 mt-1">{stat.value}</p>
-                </div>
-                <div className={`${stat.color} p-3 rounded-lg`}>
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-              </div>
-            </div>
+            <StatCard
+              key={stat.label}
+              title={stat.label}
+              value={stat.value}
+              icon={<Icon className="w-6 h-6 text-white" />}
+              accentClassName={`${stat.color} text-white`}
+            />
           );
         })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Upcoming Events */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-gray-900">Найближчі події</h2>
-            <button
-              onClick={() => onNavigate('calendar')}
-              className="text-blue-600 hover:text-blue-700"
-            >
+        <ContentCard
+          title="Найближчі події"
+          actions={
+            <button onClick={() => onNavigate('calendar')} className="text-blue-600 hover:text-blue-700">
               Всі
             </button>
-          </div>
+          }
+        >
           <div className="space-y-3">
             {data.upcomingEvents.map((event) => (
               <div key={event.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
@@ -93,53 +88,47 @@ export function Dashboard({ onNavigate, user }: DashboardProps) {
               </div>
             ))}
           </div>
-        </div>
+        </ContentCard>
 
-        {/* Recent News */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-gray-900">Останні новини</h2>
-            <button
-              onClick={() => onNavigate('news')}
-              className="text-blue-600 hover:text-blue-700"
-            >
+        <ContentCard
+          title="Останні новини"
+          actions={
+            <button onClick={() => onNavigate('news')} className="text-blue-600 hover:text-blue-700">
               Всі
             </button>
-          </div>
+          }
+        >
           <div className="space-y-3">
             {data.recentNews.map((news) => (
-              <div key={news.id} className="p-3 border border-gray-200 rounded-lg hover:border-gray-300 cursor-pointer transition-colors">
+              <div
+                key={news.id}
+                className="p-3 border border-gray-200 rounded-lg hover:border-gray-300 cursor-pointer transition-colors"
+              >
                 <div className="flex items-start gap-2 mb-1">
-                  <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs">
-                    {news.category}
-                  </span>
+                  <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs">{news.category}</span>
                 </div>
                 <p className="text-gray-900 mb-1">{news.title}</p>
                 <p className="text-gray-600">{news.date}</p>
               </div>
             ))}
           </div>
-        </div>
+        </ContentCard>
 
-        {/* My Tasks */}
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-gray-900">Мої завдання</h2>
-            <span className="text-gray-600">{data.tasks.filter(t => !t.completed).length} активних</span>
-          </div>
+        <ContentCard
+          title="Мої завдання"
+          actions={<span className="text-gray-600">{data.tasks.filter((t) => !t.completed).length} активних</span>}
+        >
           <div className="space-y-3">
             {data.tasks.map((task) => (
               <div key={task.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                 <button className={`mt-0.5 ${task.completed ? 'text-green-500' : 'text-gray-300'}`}>
                   <CheckCircle className="w-5 h-5" />
                 </button>
-                <p className={`flex-1 ${task.completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
-                  {task.title}
-                </p>
+                <p className={`flex-1 ${task.completed ? 'text-gray-400 line-through' : 'text-gray-900'}`}>{task.title}</p>
               </div>
             ))}
           </div>
-        </div>
+        </ContentCard>
       </div>
     </div>
   );

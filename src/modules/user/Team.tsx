@@ -1,6 +1,6 @@
 import { Mail, Phone, MapPin, Search, Users as UsersIcon, LayoutGrid, GitGraph } from 'lucide-react';
 import { useState } from 'react';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 import { TeamTree, TeamMember } from './TeamTree';
 import { EmployeeProfile } from './EmployeeProfile';
 
