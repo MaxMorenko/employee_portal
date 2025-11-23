@@ -57,6 +57,7 @@ type UserFormState = {
 
 type DocumentFormState = DocumentItem;
 
+const cardVariant: 'dark' = 'dark';
 const initialProjectForm: ProjectFormState = { id: 0, name: '', owner: '', status: 'В роботі', dueDate: '', progress: 50 };
 
 export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
@@ -98,7 +99,6 @@ export function AdminPage({ token, user, initialTab = 'home' }: AdminProps) {
     modified: new Date().toISOString().slice(0, 10),
   });
   const [documentError, setDocumentError] = useState<string | null>(null);
-  const cardVariant: 'dark' = 'dark';
 
   const totalUsers = useMemo(() => users.length, [users]);
   const activeProjects = useMemo(() => overview?.projects.length ?? 0, [overview]);
