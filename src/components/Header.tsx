@@ -18,9 +18,11 @@ interface HeaderProps {
   onNavigate: (page: Page) => void;
   onLogout: () => void;
   user: User | null;
+  theme?: 'admin' | 'user';
 }
 
-export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps) {
+export function Header({ currentPage, onNavigate, onLogout, user, theme = 'user' }: HeaderProps) {
+  const isAdminTheme = theme === 'admin';
   const menuItems = user?.is_admin
     ? (
         [
@@ -41,13 +43,15 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
       ] as const);
 
   return (
-    <header className="bg-white shadow-sm">
+    <header
+      className={`${isAdminTheme ? 'bg-slate-900 border-b border-slate-800 shadow-[0_1px_0_0_rgba(255,255,255,0.04)] text-slate-100' : 'bg-white shadow-sm text-gray-900'}`}
+    >
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg"></div>
-              <span className="text-gray-900">Компанія</span>
+              <div className={`w-8 h-8 rounded-lg ${isAdminTheme ? 'bg-blue-500' : 'bg-blue-600'}`}></div>
+              <span className={isAdminTheme ? 'text-slate-100' : 'text-gray-900'}>Компанія</span>
             </div>
 
             <nav className="hidden md:flex gap-1">
@@ -60,8 +64,12 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
                     onClick={() => onNavigate(item.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                       isActive
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-600 hover:bg-gray-50'
+                        ? isAdminTheme
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-blue-50 text-blue-600'
+                        : isAdminTheme
+                          ? 'text-slate-300 hover:bg-slate-800/60'
+                          : 'text-gray-600 hover:bg-gray-50'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -73,13 +81,21 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="relative p-2 text-gray-600 hover:bg-gray-50 rounded-lg">
+            <button
+              className={`relative p-2 rounded-lg ${
+                isAdminTheme ? 'text-slate-200 hover:bg-slate-800' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
               <Bell className="w-5 h-5" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
             </button>
-            <button 
+            <button
               onClick={onLogout}
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                isAdminTheme
+                  ? 'text-slate-200 hover:bg-red-500/10 hover:text-red-200'
+                  : 'text-gray-600 hover:bg-red-50 hover:text-red-600'
+              }`}
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Вийти</span>
@@ -98,8 +114,12 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
                 onClick={() => onNavigate(item.id)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm whitespace-nowrap transition-colors ${
                   isActive
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? isAdminTheme
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-blue-50 text-blue-600'
+                    : isAdminTheme
+                      ? 'text-slate-200 hover:bg-slate-800/60'
+                      : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <Icon className="w-4 h-4" />
