@@ -67,107 +67,165 @@ const publicHandlers = createPublicHandlers({
 
 const port = config.port;
 
+const routes = [
+  {
+    method: 'OPTIONS',
+    matcher: /.*/,
+    handler: (_req, res) => sendJson(res, { status: 'ok' }),
+  },
+  {
+    method: 'GET',
+    matcher: '/api/health',
+    handler: (_req, res) => publicHandlers.handleHealth(res, path.basename(DB_PATH)),
+  },
+  {
+    method: 'GET',
+    matcher: '/api/dashboard',
+    handler: (_req, res) => publicHandlers.handleDashboard(res),
+  },
+  {
+    method: 'GET',
+    matcher: '/api/news',
+    handler: (_req, res) => publicHandlers.handleNews(res),
+  },
+  {
+    method: 'GET',
+    matcher: '/api/documents',
+    handler: (_req, res) => publicHandlers.handleDocuments(res),
+  },
+  {
+    method: 'GET',
+    matcher: '/api/profile',
+    handler: (req, res) => profileHandlers.handleGetProfile(req, res),
+  },
+  {
+    method: 'POST',
+    matcher: '/api/profile/status',
+    handler: (req, res) => profileHandlers.handleUpdateProfileStatus(req, res),
+  },
+  {
+    method: 'POST',
+    matcher: '/api/auth/login',
+    handler: (req, res) => authHandlers.handleLogin(req, res),
+  },
+  {
+    method: 'POST',
+    matcher: '/api/auth/register-request',
+    handler: (req, res) => authHandlers.handleRegisterRequest(req, res),
+  },
+  {
+    method: 'POST',
+    matcher: '/api/auth/complete-registration',
+    handler: (req, res) => authHandlers.handleCompleteRegistration(req, res),
+  },
+  {
+    method: 'POST',
+    matcher: '/api/auth/logout',
+    handler: (req, res) => authHandlers.handleLogout(req, res),
+  },
+  {
+    method: 'GET',
+    matcher: '/api/admin/overview',
+    requireAdmin: true,
+    handler: (_req, res) => sendJson(res, adminHandlers.getAdminOverview()),
+  },
+  {
+    method: 'GET',
+    matcher: '/api/admin/users',
+    requireAdmin: true,
+    handler: (_req, res) => sendJson(res, dataService.getAllUsers()),
+  },
+  {
+    method: 'POST',
+    matcher: '/api/admin/users',
+    requireAdmin: true,
+    handler: (req, res) => adminHandlers.handleCreateUser(req, res),
+  },
+  {
+    method: 'PUT',
+    matcher: /^\/api\/admin\/users\/(\d+)$/,
+    requireAdmin: true,
+    handler: (req, res, [userId]) => adminHandlers.handleUpdateUser(req, res, Number(userId)),
+  },
+  {
+    method: 'DELETE',
+    matcher: /^\/api\/admin\/users\/(\d+)$/,
+    requireAdmin: true,
+    handler: (_req, res, [userId]) => adminHandlers.handleDeleteUser(res, Number(userId)),
+  },
+  {
+    method: 'POST',
+    matcher: '/api/admin/projects',
+    requireAdmin: true,
+    handler: (req, res) => adminHandlers.handleCreateProject(req, res),
+  },
+  {
+    method: 'PUT',
+    matcher: /^\/api\/admin\/projects\/(\d+)$/,
+    requireAdmin: true,
+    handler: (req, res, [projectId]) => adminHandlers.handleUpdateProject(req, res, Number(projectId)),
+  },
+  {
+    method: 'DELETE',
+    matcher: /^\/api\/admin\/projects\/(\d+)$/,
+    requireAdmin: true,
+    handler: (_req, res, [projectId]) => adminHandlers.handleDeleteProject(res, Number(projectId)),
+  },
+  {
+    method: 'POST',
+    matcher: '/api/admin/news',
+    requireAdmin: true,
+    handler: (req, res) => adminHandlers.handleCreateNews(req, res),
+  },
+  {
+    method: 'PUT',
+    matcher: /^\/api\/admin\/news\/(\d+)$/,
+    requireAdmin: true,
+    handler: (req, res, [newsId]) => adminHandlers.handleUpdateNews(req, res, Number(newsId)),
+  },
+  {
+    method: 'DELETE',
+    matcher: /^\/api\/admin\/news\/(\d+)$/,
+    requireAdmin: true,
+    handler: (_req, res, [newsId]) => adminHandlers.handleDeleteNews(res, Number(newsId)),
+  },
+];
+
+function findRoute(method, pathname) {
+  for (const route of routes) {
+    if (route.method !== method) continue;
+
+    if (typeof route.matcher === 'string' && route.matcher === pathname) {
+      return { route, params: [] };
+    }
+
+    if (route.matcher instanceof RegExp) {
+      const match = pathname.match(route.matcher);
+      if (match) {
+        return { route, params: match.slice(1) };
+      }
+    }
+  }
+
+  return null;
+}
+
 const server = http.createServer((req, res) => {
   const url = new URL(req.url || '', `http://${req.headers.host}`);
   const pathname = normalizePath(url.pathname);
 
-  if (req.method === 'OPTIONS') {
-    return sendJson(res, { status: 'ok' });
+  const match = findRoute(req.method, pathname);
+
+  if (!match) {
+    return sendJson(res, { message: 'Not found' }, 404);
   }
 
-  if (req.method === 'GET' && pathname === '/api/health') {
-    return publicHandlers.handleHealth(res, path.basename(DB_PATH));
-  }
-
-  if (req.method === 'GET' && pathname === '/api/dashboard') {
-    return publicHandlers.handleDashboard(res);
-  }
-
-  if (req.method === 'GET' && pathname === '/api/news') {
-    return publicHandlers.handleNews(res);
-  }
-
-  if (req.method === 'GET' && pathname === '/api/documents') {
-    return publicHandlers.handleDocuments(res);
-  }
-
-  if (pathname.startsWith('/api/admin')) {
+  if (match.route.requireAdmin) {
     const adminUser = sessionService.requireAdmin(req, res);
     if (!adminUser) return;
-
-    if (req.method === 'GET' && pathname === '/api/admin/overview') {
-      return sendJson(res, adminHandlers.getAdminOverview());
-    }
-
-    if (req.method === 'GET' && pathname === '/api/admin/users') {
-      return sendJson(res, dataService.getAllUsers());
-    }
-
-    if (req.method === 'POST' && pathname === '/api/admin/users') {
-      return adminHandlers.handleCreateUser(req, res);
-    }
-
-    const userMatch = pathname.match(/^\/api\/admin\/users\/(\d+)$/);
-    if (userMatch && req.method === 'PUT') {
-      return adminHandlers.handleUpdateUser(req, res, Number(userMatch[1]));
-    }
-
-    if (userMatch && req.method === 'DELETE') {
-      return adminHandlers.handleDeleteUser(res, Number(userMatch[1]));
-    }
-
-    if (req.method === 'POST' && pathname === '/api/admin/projects') {
-      return adminHandlers.handleCreateProject(req, res);
-    }
-
-    const projectMatch = pathname.match(/^\/api\/admin\/projects\/(\d+)$/);
-    if (projectMatch && req.method === 'PUT') {
-      return adminHandlers.handleUpdateProject(req, res, Number(projectMatch[1]));
-    }
-
-    if (projectMatch && req.method === 'DELETE') {
-      return adminHandlers.handleDeleteProject(res, Number(projectMatch[1]));
-    }
-
-    if (req.method === 'POST' && pathname === '/api/admin/news') {
-      return adminHandlers.handleCreateNews(req, res);
-    }
-
-    const newsMatch = pathname.match(/^\/api\/admin\/news\/(\d+)$/);
-    if (newsMatch && req.method === 'PUT') {
-      return adminHandlers.handleUpdateNews(req, res, Number(newsMatch[1]));
-    }
-
-    if (newsMatch && req.method === 'DELETE') {
-      return adminHandlers.handleDeleteNews(res, Number(newsMatch[1]));
-    }
   }
 
-  if (req.method === 'GET' && pathname === '/api/profile') {
-    return profileHandlers.handleGetProfile(req, res);
-  }
-
-  if (req.method === 'POST' && pathname === '/api/profile/status') {
-    return profileHandlers.handleUpdateProfileStatus(req, res);
-  }
-
-  if (req.method === 'POST' && pathname === '/api/auth/login') {
-    return authHandlers.handleLogin(req, res);
-  }
-
-  if (req.method === 'POST' && pathname === '/api/auth/register-request') {
-    return authHandlers.handleRegisterRequest(req, res);
-  }
-
-  if (req.method === 'POST' && pathname === '/api/auth/complete-registration') {
-    return authHandlers.handleCompleteRegistration(req, res);
-  }
-
-  if (req.method === 'POST' && pathname === '/api/auth/logout') {
-    return authHandlers.handleLogout(req, res);
-  }
-
-  return sendJson(res, { message: 'Not found' }, 404);
+  return match.route.handler(req, res, match.params);
 });
 
 server.listen(port, () => {

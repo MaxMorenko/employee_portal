@@ -8,7 +8,7 @@ import {
   RegistrationRequest,
   RegistrationRequestSent,
 } from './components/Register';
-import { AdminPage } from './modules/admin/AdminPage';
+import { AdminPage, type AdminTab } from './modules/admin/AdminPage';
 import { Calendar } from './modules/user/Calendar';
 import { Dashboard } from './modules/user/Dashboard';
 import { Documents } from './modules/user/Documents';
@@ -40,6 +40,8 @@ export default function App() {
   const [pendingEmail, setPendingEmail] = useState('');
   const [tokenHint, setTokenHint] = useState('');
 
+  const normalizeUser = (value: User): User => ({ ...value, is_admin: Boolean(value.is_admin) });
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
@@ -62,20 +64,21 @@ export default function App() {
   useEffect(() => {
     const storedSession = sessionStorage.getItem('authSession');
 
-    if (storedSession) {
-      try {
-        const parsed: { token?: string; user?: User } = JSON.parse(storedSession);
+    if (!storedSession) return;
 
-        if (parsed.token && parsed.user) {
-          setSessionToken(parsed.token);
-          setUser({ ...parsed.user, is_admin: Boolean((parsed.user as User).is_admin) });
-          setIsAuthenticated(true);
-          setCurrentPage(Boolean((parsed.user as User).is_admin) ? 'admin-overview' : 'dashboard');
-        }
-      } catch (err) {
-        console.error('Не вдалося відновити сесію', err);
-        sessionStorage.removeItem('authSession');
+    try {
+      const parsed: { token?: string; user?: User } = JSON.parse(storedSession);
+
+      if (parsed.token && parsed.user) {
+        const restoredUser = normalizeUser(parsed.user as User);
+        setSessionToken(parsed.token);
+        setUser(restoredUser);
+        setIsAuthenticated(true);
+        setCurrentPage(restoredUser.is_admin ? 'admin-overview' : 'dashboard');
       }
+    } catch (err) {
+      console.error('Не вдалося відновити сесію', err);
+      sessionStorage.removeItem('authSession');
     }
   }, []);
 
@@ -83,7 +86,7 @@ export default function App() {
     if (!sessionToken) return;
 
     getProfile(sessionToken)
-      .then((profile) => setUser({ ...profile, is_admin: Boolean(profile.is_admin) }))
+      .then((profile) => setUser(normalizeUser(profile)))
       .catch((err) => console.error('Не вдалося оновити профіль', err));
   }, [sessionToken]);
 
@@ -97,21 +100,22 @@ export default function App() {
     sessionStorage.removeItem('authSession');
   };
 
+  const startSession = (response: LoginResponse) => {
+    const normalizedUser = normalizeUser(response.user);
+    setUser(normalizedUser);
+    setIsAuthenticated(true);
+    persistSession(response.token, normalizedUser);
+    setAuthView('login');
+    setCurrentPage(normalizedUser.is_admin ? 'admin-overview' : 'dashboard');
+  };
+
   const handleLogin = async (email: string, password: string) => {
     const response = await loginApi(email, password);
-    setUser(response.user);
-    setIsAuthenticated(true);
-    persistSession(response.token, response.user);
-    setAuthView('login');
-    setCurrentPage(response.user.is_admin ? 'admin-overview' : 'dashboard');
+    startSession(response);
   };
 
   const handleRegistrationDone = (response: LoginResponse) => {
-    setUser(response.user);
-    setIsAuthenticated(true);
-    persistSession(response.token, response.user);
-    setAuthView('login');
-    setCurrentPage(response.user.is_admin ? 'admin-overview' : 'dashboard');
+    startSession(response);
   };
 
   const handleLogout = async () => {
@@ -130,43 +134,47 @@ export default function App() {
     setCurrentPage('dashboard');
   };
 
+  const renderAuthView = () => {
+    switch (authView) {
+      case 'register':
+        return (
+          <RegistrationRequest
+            onBack={() => setAuthView('login')}
+            onSuccess={(email, hint) => {
+              setPendingEmail(email);
+              setTokenHint(hint || '');
+              setAuthView('registerSent');
+            }}
+          />
+        );
+      case 'registerSent':
+        return (
+          <RegistrationRequestSent
+            email={pendingEmail}
+            onBack={() => setAuthView('login')}
+            onEnterCode={() => setAuthView('complete')}
+          />
+        );
+      case 'complete':
+        return (
+          <CompleteRegistration
+            defaultEmail={pendingEmail}
+            tokenHint={tokenHint}
+            onRegistered={handleRegistrationDone}
+            onBack={() => setAuthView('login')}
+          />
+        );
+      default:
+        return <Login onLogin={handleLogin} onShowRegister={() => setAuthView('register')} />;
+    }
+  };
+
   if (!isAuthenticated) {
-    if (authView === 'register') {
-      return (
-        <RegistrationRequest
-          onBack={() => setAuthView('login')}
-          onSuccess={(email, hint) => {
-            setPendingEmail(email);
-            setTokenHint(hint || '');
-            setAuthView('registerSent');
-          }}
-        />
-      );
-    }
-
-    if (authView === 'registerSent') {
-      return (
-        <RegistrationRequestSent
-          email={pendingEmail}
-          onBack={() => setAuthView('login')}
-          onEnterCode={() => setAuthView('complete')}
-        />
-      );
-    }
-
-    if (authView === 'complete') {
-      return (
-        <CompleteRegistration
-          defaultEmail={pendingEmail}
-          tokenHint={tokenHint}
-          onRegistered={handleRegistrationDone}
-          onBack={() => setAuthView('login')}
-        />
-      );
-    }
-
-    return <Login onLogin={handleLogin} onShowRegister={() => setAuthView('register')} />;
+    return renderAuthView();
   }
+
+  const renderAdminTab = (initialTab: AdminTab) =>
+    user && sessionToken ? <AdminPage token={sessionToken} user={user} initialTab={initialTab} /> : null;
 
   const renderPage = () => {
     switch (currentPage) {
@@ -183,25 +191,15 @@ export default function App() {
       case 'team':
         return <Team />;
       case 'admin-overview':
-        return user && sessionToken ? (
-          <AdminPage token={sessionToken} user={user} initialTab="home" />
-        ) : null;
+        return renderAdminTab('home');
       case 'admin-news':
-        return user && sessionToken ? (
-          <AdminPage token={sessionToken} user={user} initialTab="news" />
-        ) : null;
+        return renderAdminTab('news');
       case 'admin-projects':
-        return user && sessionToken ? (
-          <AdminPage token={sessionToken} user={user} initialTab="projects" />
-        ) : null;
+        return renderAdminTab('projects');
       case 'admin-users':
-        return user && sessionToken ? (
-          <AdminPage token={sessionToken} user={user} initialTab="users" />
-        ) : null;
+        return renderAdminTab('users');
       case 'admin-documents':
-        return user && sessionToken ? (
-          <AdminPage token={sessionToken} user={user} initialTab="documents" />
-        ) : null;
+        return renderAdminTab('documents');
       default:
         return <Dashboard onNavigate={setCurrentPage} user={user} />;
     }
