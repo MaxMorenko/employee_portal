@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Calendar, FileText, Users, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 import { ContentCard } from '../shared/components/ContentCard';
-import { StatCard } from '../shared/components/StatCard';
 import type { Page } from '../../App';
 import { getDashboard } from '../../api/client';
 import type { DashboardData, User } from '../../api/types';
@@ -55,13 +54,17 @@ export function Dashboard({ onNavigate, user }: DashboardProps) {
         {data.stats.map((stat) => {
           const Icon = iconMap[stat.icon] || TrendingUp;
           return (
-            <StatCard
-              key={stat.label}
-              title={stat.label}
-              value={stat.value}
-              icon={<Icon className="w-6 h-6 text-white" />}
-              accentClassName={`${stat.color} text-white`}
-            />
+            <div key={stat.label} className="bg-white p-6 rounded-xl shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600">{stat.label}</p>
+                  <p className="text-gray-900 mt-1">{stat.value}</p>
+                </div>
+                <div className={`${stat.color} p-3 rounded-lg`}>
+                  <Icon className="w-6 h-6 text-white" aria-hidden />
+                </div>
+              </div>
+            </div>
           );
         })}
       </div>
