@@ -411,26 +411,26 @@ function AdminHomeTab({
 }) {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <StatCard title="Користувачі" value={totalUsers} icon={<Users className="w-5 h-5" />} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard title="Користувачі" value={totalUsers} icon={<Users className="w-6 h-6" />} />
         <StatCard
           title="Активні проєкти"
           value={activeProjects}
-          icon={<FolderKanban className="w-5 h-5" />}
-          accentClassName="w-12 h-12 bg-green-50 text-green-700 rounded-full flex items-center justify-center"
+          icon={<FolderKanban className="w-6 h-6" />}
+          accentClassName="bg-green-500 text-white"
         />
         <StatCard
           title="Новини"
           value={overview.news.length}
-          icon={<Newspaper className="w-5 h-5" />}
-          accentClassName="w-12 h-12 bg-orange-50 text-orange-700 rounded-full flex items-center justify-center"
+          icon={<Newspaper className="w-6 h-6" />}
+          accentClassName="bg-orange-500 text-white"
         />
         <StatCard
           title="Перегляди новин"
           value={overview.stats.newsViews}
           helperText={`Останній логін: ${overview.stats.lastLogin || '—'}`}
-          icon={<BarChart3 className="w-5 h-5" />}
-          accentClassName="w-12 h-12 bg-purple-50 text-purple-700 rounded-full flex items-center justify-center"
+          icon={<BarChart3 className="w-6 h-6" />}
+          accentClassName="bg-purple-500 text-white"
         />
       </div>
 
