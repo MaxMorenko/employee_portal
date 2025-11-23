@@ -33,7 +33,7 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
             </div>
 
             {shouldShowNavigation && (
-              <nav className="hidden md:flex gap-1">
+              <nav className="hidden md:flex flex-wrap gap-2">
                 {menuItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = currentPage === item.id;
@@ -41,10 +41,10 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
                     <button
                       key={item.id}
                       onClick={() => onNavigate(item.id)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                      className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
                         isActive
-                          ? 'bg-blue-50 text-blue-600'
-                          : 'text-gray-600 hover:bg-gray-50'
+                          ? 'border-blue-200 bg-blue-50 text-blue-700'
+                          : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -81,10 +81,10 @@ export function Header({ currentPage, onNavigate, onLogout, user }: HeaderProps)
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-colors ${
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm whitespace-nowrap transition-colors ${
                     isActive
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      ? 'border-blue-200 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
