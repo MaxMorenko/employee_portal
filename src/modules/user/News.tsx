@@ -1,8 +1,8 @@
 import { Calendar, User, ArrowRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { ImageWithFallback } from './figma/ImageWithFallback';
-import { getNews } from '../api/client';
-import type { NewsItem } from '../api/types';
+import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
+import { getNews } from '../../api/client';
+import type { NewsItem } from '../../api/types';
 
 export function News() {
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);

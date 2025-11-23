@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { ImageWithFallback } from './figma/ImageWithFallback';
+import React, { useRef, useState } from 'react';
 import { Minus, Plus, RefreshCw } from 'lucide-react';
+import { ImageWithFallback } from '../../components/figma/ImageWithFallback';
 
 export interface TeamMember {
   id: number | string;

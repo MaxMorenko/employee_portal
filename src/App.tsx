@@ -1,11 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Header } from './components/Header';
-import { Dashboard } from './components/Dashboard';
-import { Profile } from './components/Profile';
-import { News } from './components/News';
-import { Calendar } from './components/Calendar';
-import { Documents } from './components/Documents';
-import { Team } from './components/Team';
 import { Login } from './components/Login';
 import { getProfile, login as loginApi, logout as logoutApi } from './api/client';
 import type { LoginResponse, User } from './api/types';
@@ -14,7 +8,13 @@ import {
   RegistrationRequest,
   RegistrationRequestSent,
 } from './components/Register';
-import { Admin } from './components/Admin';
+import { AdminPage } from './modules/admin/AdminPage';
+import { Calendar } from './modules/user/Calendar';
+import { Dashboard } from './modules/user/Dashboard';
+import { Documents } from './modules/user/Documents';
+import { News } from './modules/user/News';
+import { Profile } from './modules/user/Profile';
+import { Team } from './modules/user/Team';
 
 export type Page = 'dashboard' | 'profile' | 'news' | 'calendar' | 'documents' | 'team' | 'admin';
 
@@ -172,7 +172,7 @@ export default function App() {
       case 'team':
         return <Team />;
       case 'admin':
-        return user && sessionToken ? <Admin token={sessionToken} user={user} /> : null;
+        return user && sessionToken ? <AdminPage token={sessionToken} user={user} /> : null;
       default:
         return <Dashboard onNavigate={setCurrentPage} user={user} />;
     }

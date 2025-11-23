@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, Search, Filter, Folder, File } from 'lucide-react';
-import { getDocuments } from '../api/client';
-import type { DocumentFolder, DocumentItem } from '../api/types';
+import { getDocuments } from '../../api/client';
+import type { DocumentFolder, DocumentItem } from '../../api/types';
 
 export function Documents() {
   const [folders, setFolders] = useState<DocumentFolder[]>([]);
