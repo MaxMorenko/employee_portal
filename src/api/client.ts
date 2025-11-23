@@ -207,6 +207,31 @@ export async function createNews(
   });
 }
 
+export async function updateNews(
+  token: string,
+  id: number,
+  payload: { title: string; excerpt: string; category: string; author: string; image?: string; featured?: boolean },
+): Promise<NewsResponse['items'][number]> {
+  return fetchJson<NewsResponse['items'][number]>(`${API_BASE}/admin/news/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteNews(token: string, id: number): Promise<{ deleted: boolean }> {
+  return fetchJson<{ deleted: boolean }>(`${API_BASE}/admin/news/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-session-token': token,
+    },
+  });
+}
+
 export async function getProfile(token: string): Promise<User> {
   return fetchJson<User>(`${API_BASE}/profile`, {
     headers: {
